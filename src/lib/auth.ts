@@ -36,31 +36,43 @@ export async function getCurrentUser(): Promise<User | null> {
     const decoded = await verifyToken(token);
     if (!decoded) return null;
 
-    const res = await query(
-      `SELECT u.id, u.name, u.username, u.role, u.phone, u.avatar, u.created_at,
-              c.id as assigned_class_id, c.name as assigned_class_name
-       FROM users u
-       LEFT JOIN classes c ON c.teacher_id = u.id
-       WHERE u.id = $1`,
-      [decoded.id]
-    );
+    try {
+      const res = await query(
+        `SELECT u.id, u.name, u.username, u.role, u.phone, u.avatar, u.created_at,
+                c.id as assigned_class_id, c.name as assigned_class_name
+         FROM users u
+         LEFT JOIN classes c ON c.teacher_id = u.id
+         WHERE u.id = $1`,
+        [decoded.id]
+      );
 
-    if (res.rows.length === 0) return null;
+      if (res.rows.length === 0) return null;
 
-    const u = res.rows[0];
-    return {
-      id: u.id,
-      name: u.name,
-      username: u.username,
-      role: u.role as Role,
-      phone: u.phone,
-      avatar: u.avatar,
-      assigned_class_id: u.assigned_class_id || undefined,
-      assigned_class_name: u.assigned_class_name || undefined,
-      created_at: u.created_at,
-    };
+      const u = res.rows[0];
+      return {
+        id: u.id,
+        name: u.name,
+        username: u.username,
+        role: u.role as Role,
+        phone: u.phone,
+        avatar: u.avatar,
+        assigned_class_id: u.assigned_class_id || undefined,
+        assigned_class_name: u.assigned_class_name || undefined,
+        created_at: u.created_at,
+      };
+    } catch (dbErr) {
+      console.warn('Database query fallback in getCurrentUser:', dbErr);
+      // Token mavjud va to'g'ri bo'lsa, xatolik chiqarmasdan foydalanuvchini qaytarish
+      return {
+        id: decoded.id,
+        name: decoded.name || decoded.username,
+        username: decoded.username,
+        role: decoded.role as Role,
+        created_at: new Date().toISOString(),
+      };
+    }
   } catch (err) {
-    console.error('Error fetching current user:', err);
+    console.error('Error in getCurrentUser:', err);
     return null;
   }
 }

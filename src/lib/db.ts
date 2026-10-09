@@ -1,11 +1,20 @@
 import { Pool, QueryResult, QueryResultRow } from 'pg';
+import dns from 'dns';
+
+// Linux va server muhitlarida IPv6 timeout bo'lishini oldini olib, IPv4 ga ustunlik berish
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch {
+  // ignore
+}
 
 declare global {
   // eslint-disable-next-line no-var
   var __db_pool: Pool | undefined;
 }
 
-const connectionString = process.env.DATABASE_URL || 'postgresql://bozkurt:maktabim123@localhost:5432/maktabim_db';
+const connectionString =
+  process.env.DATABASE_URL || 'postgresql://bozkurt:maktabim123@localhost:5432/maktabim_db';
 const isLocal = connectionString.includes('localhost') || connectionString.includes('127.0.0.1');
 
 export const pool: Pool =
@@ -15,6 +24,7 @@ export const pool: Pool =
     ssl: isLocal ? false : { rejectUnauthorized: false },
     max: 10,
     idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000,
   });
 
 if (process.env.NODE_ENV !== 'production') {
@@ -34,7 +44,7 @@ export async function query<T extends QueryResultRow = any>(
     }
     return res;
   } catch (err: any) {
-    console.error(`[DB Error]: ${err.message} in query: ${text.slice(0, 100)}`);
+    console.error(`[DB Error]: ${err.message || err} in query: ${text.slice(0, 100)}`);
     throw err;
   }
 }
