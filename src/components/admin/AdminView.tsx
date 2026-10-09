@@ -347,39 +347,51 @@ export function AdminView({ selectedDate, currentSchoolId, onSelectSchool }: Adm
           </p>
         </div>
 
-        {/* Tab Menyu */}
-        <div className="flex items-center gap-1 bg-slate-100 p-1.5 rounded-2xl border border-slate-200 overflow-x-auto no-scrollbar">
+        {/* Tab Menyu (Stitch Segmented Style) */}
+        <div className="flex items-center gap-1.5 bg-[#F2F3FF] p-1.5 rounded-2xl border border-[#C4C5D7]/60 overflow-x-auto no-scrollbar">
           <button
             onClick={() => setActiveTab('schools')}
-            className={`px-3.5 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
-              activeTab === 'schools' ? 'bg-white text-purple-700 shadow-xs' : 'text-slate-600'
+            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5 ${
+              activeTab === 'schools'
+                ? 'bg-white text-[#0037B0] shadow-xs'
+                : 'text-[#434655] hover:text-[#131B2E]'
             }`}
           >
-            🏫 Maktablar ({schools.length})
+            <span className="material-symbols-outlined text-[18px]">domain</span>
+            <span>Maktablar ({schools.length})</span>
           </button>
           <button
             onClick={() => setActiveTab('classes')}
-            className={`px-3.5 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
-              activeTab === 'classes' ? 'bg-white text-purple-700 shadow-xs' : 'text-slate-600'
+            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5 ${
+              activeTab === 'classes'
+                ? 'bg-white text-[#0037B0] shadow-xs'
+                : 'text-[#434655] hover:text-[#131B2E]'
             }`}
           >
-            📚 Sinflar ({classes.length})
+            <span className="material-symbols-outlined text-[18px]">meeting_room</span>
+            <span>Sinflar ({classes.length})</span>
           </button>
           <button
             onClick={() => setActiveTab('students')}
-            className={`px-3.5 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
-              activeTab === 'students' ? 'bg-white text-purple-700 shadow-xs' : 'text-slate-600'
+            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5 ${
+              activeTab === 'students'
+                ? 'bg-white text-[#0037B0] shadow-xs'
+                : 'text-[#434655] hover:text-[#131B2E]'
             }`}
           >
-            👨‍🎓 O‘quvchilar ({students.length})
+            <span className="material-symbols-outlined text-[18px]">school</span>
+            <span>O‘quvchilar ({students.length})</span>
           </button>
           <button
             onClick={() => setActiveTab('users')}
-            className={`px-3.5 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
-              activeTab === 'users' ? 'bg-white text-purple-700 shadow-xs' : 'text-slate-600'
+            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5 ${
+              activeTab === 'users'
+                ? 'bg-white text-[#0037B0] shadow-xs'
+                : 'text-[#434655] hover:text-[#131B2E]'
             }`}
           >
-            👥 Xodimlar ({usersList.length})
+            <span className="material-symbols-outlined text-[18px]">badge</span>
+            <span>Xodimlar ({usersList.length})</span>
           </button>
         </div>
       </div>

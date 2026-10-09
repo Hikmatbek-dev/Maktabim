@@ -1,11 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { SchoolClass, Student, AttendanceStatus, AttendanceRecord } from '@/lib/types';
-import { 
-  Users, CheckCircle2, XCircle, Clock, ArrowLeft, 
-  Save, Send, ChevronRight, Check, AlertCircle, Sparkles, Filter 
-} from 'lucide-react';
+import { SchoolClass, Student, AttendanceStatus } from '@/lib/types';
 
 interface InspectorViewProps {
   selectedDate: string;
@@ -92,7 +88,7 @@ export function InspectorView({ selectedDate, schoolId }: InspectorViewProps) {
     loadClassAttendance(cls.id);
   };
 
-  // Bir tegishda almashtirish (Toggle: PRESENT <-> ABSENT_UNEXCUSED)
+  // Bir tegishda almashtirish (Bor <-> Yo'q)
   const handleToggleStatus = (studentId: string) => {
     setAttendanceMap((prev) => {
       const current = prev[studentId]?.status || 'PRESENT';
@@ -118,7 +114,7 @@ export function InspectorView({ selectedDate, schoolId }: InspectorViewProps) {
     }));
   };
 
-  // Barchasini "Kelgan" deb belgilash
+  // Barchasini "Bor" deb belgilash
   const handleMarkAllPresent = () => {
     const updated: Record<string, { status: AttendanceStatus; reason?: string }> = {};
     students.forEach((s) => {
@@ -160,7 +156,7 @@ export function InspectorView({ selectedDate, schoolId }: InspectorViewProps) {
       });
 
       setIsSubmitted(true);
-      setSuccessToast(`${activeClass.name} sinf davomati muvaffaqiyatli topshirildi!`);
+      setSuccessToast(`${activeClass.name} sinfi davomati muvaffaqiyatli topshirildi!`);
       setTimeout(() => setSuccessToast(null), 3500);
       loadClasses();
     } catch (err) {
@@ -175,54 +171,60 @@ export function InspectorView({ selectedDate, schoolId }: InspectorViewProps) {
   const total = students.length;
   const present = Object.values(attendanceMap).filter((s) => s.status === 'PRESENT').length;
   const absent = Object.values(attendanceMap).filter((s) => s.status === 'ABSENT_UNEXCUSED').length;
-  const excused = Object.values(attendanceMap).filter((s) => s.status === 'ABSENT_EXCUSED').length;
   const late = Object.values(attendanceMap).filter((s) => s.status === 'LATE').length;
 
+  const filteredStudents = students.filter((s) =>
+    s.name.toLowerCase().includes(searchStudent.toLowerCase())
+  );
+
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-28">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-5 pb-32 space-y-6">
       {/* Toast xabari */}
       {successToast && (
-        <div className="fixed top-20 right-4 z-50 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-in slide-in-from-top-4">
-          <CheckCircle2 className="w-5 h-5" />
+        <div className="fixed top-20 right-4 z-50 bg-[#006C49] text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 animate-in slide-in-from-top-4 border border-[#6CF8BB]/40">
+          <span className="material-symbols-outlined text-[22px]">check_circle</span>
           <span className="text-sm font-semibold">{successToast}</span>
         </div>
       )}
 
-      {/* AGAR SINF TANLANMAGAN BO'LSA - SINFLAR RO'YXATI */}
+      {/* SINF TANLANMAGAN BO'LSA - BARCHA SINFLAR */}
       {!activeClass ? (
-        <div className="space-y-4 sm:space-y-6">
-          {/* Header & Smena tanlagich */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+        <div className="space-y-5">
+          {/* Sarlavha & Smena segmenti */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-[#C4C5D7]/60 shadow-xs">
             <div>
-              <h1 className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
-                <span>📱 Davomatchi Paneli</span>
-                <span className="text-xs px-2.5 py-0.5 bg-blue-100 text-blue-700 font-semibold rounded-full">
-                  Tezkor tekshiruv
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#1D4ED8] text-[26px]">checklist</span>
+                <h1 className="text-lg sm:text-xl font-bold text-[#131B2E]">
+                  Tezkor Davomat Tekshiruvi
+                </h1>
+                <span className="px-2.5 py-0.5 bg-[#EAEDFF] text-[#0037B0] font-semibold text-xs rounded-full">
+                  Mobil / Inspector
                 </span>
-              </h1>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Sinfni tanlang va bitta teginishda kelmagan o‘quvchilarni belgilang
+              </div>
+              <p className="text-xs sm:text-sm text-[#434655] mt-1">
+                Sinfni tanlang va har bir o‘quvchiga 1 marta bosish orqali davomatni belgilang
               </p>
             </div>
 
-            {/* Smena tugmalari */}
-            <div className="inline-flex bg-slate-100 p-1 rounded-xl self-start sm:self-auto border border-slate-200">
+            {/* Smena Segmented Control */}
+            <div className="inline-flex bg-[#F1F5F9] p-1 rounded-xl border border-[#C4C5D7]/50 self-start sm:self-auto">
               <button
                 onClick={() => setSelectedShift(1)}
-                className={`px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all ${
+                className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                   selectedShift === 1
-                    ? 'bg-white text-blue-700 shadow-xs font-bold'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white text-[#0037B0] font-bold shadow-xs'
+                    : 'text-[#434655] hover:text-[#131B2E]'
                 }`}
               >
                 1-Smena (Ertalab)
               </button>
               <button
                 onClick={() => setSelectedShift(2)}
-                className={`px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all ${
+                className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                   selectedShift === 2
-                    ? 'bg-white text-blue-700 shadow-xs font-bold'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white text-[#0037B0] font-bold shadow-xs'
+                    : 'text-[#434655] hover:text-[#131B2E]'
                 }`}
               >
                 2-Smena (Tushdan keyin)
@@ -230,67 +232,67 @@ export function InspectorView({ selectedDate, schoolId }: InspectorViewProps) {
             </div>
           </div>
 
-          {/* Sinflar kartochkalari - Responsive Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          {/* Sinflar ro'yxati kartochkalari */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
             {classes.map((cls) => {
               const isDone = cls.is_submitted;
               return (
                 <div
                   key={cls.id}
                   onClick={() => handleSelectClass(cls)}
-                  className={`bg-white rounded-2xl p-4 sm:p-5 border transition-all cursor-pointer tap-active relative overflow-hidden group hover:shadow-md ${
+                  className={`bg-white rounded-2xl p-5 border transition-all cursor-pointer tap-active relative overflow-hidden group hover:shadow-md ${
                     isDone
-                      ? 'border-emerald-200 hover:border-emerald-300'
-                      : 'border-slate-200 hover:border-blue-300'
+                      ? 'border-[#A7F3D0] hover:border-[#10B981]'
+                      : 'border-[#C4C5D7]/60 hover:border-[#1D4ED8]'
                   }`}
                 >
-                  {/* Status Indicator Bar */}
                   <div
                     className={`absolute top-0 left-0 right-0 h-1.5 ${
-                      isDone ? 'bg-emerald-500' : 'bg-amber-400'
+                      isDone ? 'bg-[#10B981]' : 'bg-[#F59E0B]'
                     }`}
                   />
 
                   <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-12 h-12 rounded-xl bg-slate-100 group-hover:bg-blue-50 text-slate-800 group-hover:text-blue-600 flex items-center justify-center font-black text-xl transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-[#F2F3FF] group-hover:bg-[#EAEDFF] text-[#0037B0] flex items-center justify-center font-bold text-lg transition-colors">
                         {cls.name}
                       </div>
                       <div>
-                        <span className="text-xs text-slate-500 font-medium">
-                          {cls.room || 'Xona belgilanmagan'}
+                        <span className="text-xs text-[#434655] font-medium block">
+                          {cls.room || 'Xona ko‘rsatilmagan'}
                         </span>
-                        <div className="text-xs font-semibold text-slate-700">
-                          {cls.teacher_name || 'Sinf rahbari biriktirilmagan'}
+                        <div className="text-xs font-semibold text-[#131B2E]">
+                          {cls.teacher_name || 'Ustoz biriktirilmagan'}
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-end">
+                    <div>
                       {isDone ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-                          <Check className="w-3.5 h-3.5" /> Topshirilgan
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#047857] bg-[#ECFDF5] px-2.5 py-1 rounded-full border border-[#A7F3D0]">
+                          <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                          Topshirilgan
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
-                          <Clock className="w-3.5 h-3.5" /> Kutilmoqda
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#B45309] bg-[#FFFBEB] px-2.5 py-1 rounded-full border border-[#FDE68A]">
+                          <span className="material-symbols-outlined text-[14px]">schedule</span>
+                          Kutilmoqda
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {/* Statistika qatori */}
-                  <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs">
-                    <div className="flex items-center gap-1 text-slate-600 font-medium">
-                      <Users className="w-4 h-4 text-slate-400" />
+                  <div className="flex items-center justify-between pt-3 border-t border-[#EAEDFF] text-xs">
+                    <div className="flex items-center gap-1.5 text-[#434655] font-medium">
+                      <span className="material-symbols-outlined text-[16px] text-[#747686]">groups</span>
                       <span>{cls.total_students} o‘quvchi</span>
                     </div>
 
                     <div className="flex items-center gap-2 font-semibold">
-                      <span className="text-emerald-600">✓ {cls.present_count}</span>
-                      <span className="text-red-500">✕ {cls.unexcused_count}</span>
-                      {cls.excused_count > 0 && <span className="text-amber-500">⚠ {cls.excused_count}</span>}
-                      <span className="text-slate-400">({cls.percentage}%)</span>
+                      <span className="text-[#047857]">✓ {cls.present_count}</span>
+                      <span className="text-[#BE123C]">✕ {cls.unexcused_count}</span>
+                      {cls.excused_count > 0 && <span className="text-[#B45309]">⚠ {cls.excused_count}</span>}
+                      <span className="text-[#747686]">({cls.percentage}%)</span>
                     </div>
                   </div>
                 </div>
@@ -299,170 +301,194 @@ export function InspectorView({ selectedDate, schoolId }: InspectorViewProps) {
           </div>
         </div>
       ) : (
-        /* AGAR SINF TANLANGAN BO'LSA - TEZKOR TEKSHIRUV EKRANI */
-        <div className="space-y-4">
-          {/* Header Bar */}
-          <div className="sticky top-16 z-20 bg-white/95 backdrop-blur p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        /* SINF TANLANGAN BO'LSA — 1:1 GOOGLE STITCH MOBIL DIZAYNI */
+        <div className="space-y-5 animate-in fade-in duration-200">
+          {/* TopAppBar Navigation */}
+          <div className="bg-white rounded-2xl border border-[#C4C5D7]/60 p-4 shadow-xs flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setActiveClass(null)}
-                className="p-2 -ml-1 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors"
+                className="p-2 rounded-xl text-[#0037B0] hover:bg-[#EAEDFF] active:scale-95 transition-transform"
+                title="Orqaga"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <span className="material-symbols-outlined text-[24px]">arrow_back</span>
               </button>
               <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-black text-slate-900">{activeClass.name} sinfi</h2>
-                  {isSubmitted && (
-                    <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-md">
-                      Topshirilgan
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-slate-500">
-                  {activeClass.teacher_name ? `Sinf rahbari: ${activeClass.teacher_name}` : 'Sinf rahbari yo‘q'}
+                <h1 className="text-[17px] font-bold text-[#0037B0] leading-tight">
+                  {activeClass.name} sinfi {activeClass.room ? `(${activeClass.room})` : ''}
+                </h1>
+                <p className="text-[13px] text-[#434655]">
+                  {selectedDate} | {activeClass.teacher_name || 'Ustoz belgilanmagan'}
                 </p>
               </div>
             </div>
 
-            {/* Tezkor hisoblagichlar va "Barchasini keldi qilish" */}
-            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-              <div className="flex items-center bg-slate-100 rounded-xl px-3 py-1.5 text-xs font-bold gap-3">
-                <span className="text-slate-700">Jami: {total}</span>
-                <span className="text-emerald-700">Kelgan: {present}</span>
-                <span className="text-red-600">Kelmadi: {absent}</span>
-                {excused > 0 && <span className="text-amber-600">Sababli: {excused}</span>}
-                {late > 0 && <span className="text-blue-600">Kechikkan: {late}</span>}
-              </div>
-
-              <button
-                onClick={handleMarkAllPresent}
-                className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl border border-emerald-200 transition-all"
+            {/* Sinfni tezkor o'zgartirish select */}
+            <div className="flex items-center gap-2">
+              <select
+                value={activeClass.id}
+                onChange={(e) => {
+                  const target = classes.find((c) => c.id === e.target.value);
+                  if (target) handleSelectClass(target);
+                }}
+                className="bg-[#F2F3FF] text-[#131B2E] text-[12px] font-semibold rounded-xl px-3 py-1.5 border border-[#C4C5D7]/70 focus:outline-none focus:ring-2 focus:ring-[#1D4ED8]"
               >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Hammasi kelgan</span>
-              </button>
+                {classes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
-          {/* O'quvchilar ro'yxati: Mobile-optimized Quick-Tap UI */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
-            {students.map((student, idx) => {
+          {/* Stitch: Inspection Summary Cards (4 ta rangli metrika kartasi) */}
+          <div className="bg-white rounded-2xl border border-[#C4C5D7]/60 p-4 shadow-xs">
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-[14px] font-bold text-[#131B2E]">Umumiy ko‘rsatkichlar</span>
+              <button
+                onClick={handleMarkAllPresent}
+                className="text-[12px] font-semibold text-[#047857] hover:underline flex items-center gap-1 bg-[#ECFDF5] px-2.5 py-1 rounded-full border border-[#A7F3D0]"
+              >
+                <span className="material-symbols-outlined text-[16px]">done_all</span>
+                Hammasi kelgan
+              </button>
+            </div>
+
+            <div className="grid grid-cols-4 gap-2 text-center">
+              <div className="bg-[#F2F3FF] p-3 rounded-xl border border-[#EAEDFF]">
+                <div className="text-[20px] font-bold text-[#0037B0]">{total}</div>
+                <div className="text-[11px] font-bold text-[#434655] mt-1">Jami</div>
+              </div>
+
+              <div className="bg-[#ECFDF5] p-3 rounded-xl border border-[#A7F3D0]">
+                <div className="text-[20px] font-bold text-[#047857]">{present}</div>
+                <div className="text-[11px] font-bold text-[#047857] mt-1">Kelgan</div>
+              </div>
+
+              <div className="bg-[#FFF1F2] p-3 rounded-xl border border-[#FECDD3]">
+                <div className="text-[20px] font-bold text-[#BE123C]">{absent}</div>
+                <div className="text-[11px] font-bold text-[#BE123C] mt-1">Kelmagan</div>
+              </div>
+
+              <div className="bg-[#FFFBEB] p-3 rounded-xl border border-[#FDE68A]">
+                <div className="text-[20px] font-bold text-[#B45309]">{late}</div>
+                <div className="text-[11px] font-bold text-[#B45309] mt-1">Kechikkan</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Search Bar */}
+          <div className="relative">
+            <span className="material-symbols-outlined absolute left-3.5 top-3.5 text-[#747686] text-[20px]">
+              search
+            </span>
+            <input
+              type="text"
+              value={searchStudent}
+              onChange={(e) => setSearchStudent(e.target.value)}
+              placeholder="O'quvchi F.I.Sh bo‘yicha qidirish..."
+              className="w-full h-12 pl-11 pr-4 bg-white border border-[#C4C5D7]/70 rounded-xl text-sm text-[#131B2E] placeholder-[#747686] focus:border-[#1D4ED8] focus:ring-2 focus:ring-[#1D4ED8]/15 transition-all outline-none"
+            />
+          </div>
+
+          {/* Student Inspection Cards List (Stitch 1:1 Kartochkalari) */}
+          <div className="space-y-3">
+            {filteredStudents.map((student, idx) => {
               const currentStatus = attendanceMap[student.id]?.status || 'PRESENT';
               const isPresent = currentStatus === 'PRESENT';
               const isAbsent = currentStatus === 'ABSENT_UNEXCUSED';
-              const isExcused = currentStatus === 'ABSENT_EXCUSED';
               const isLate = currentStatus === 'LATE';
+
+              const indexStr = (idx + 1).toString().padStart(2, '0');
 
               return (
                 <div
                   key={student.id}
-                  onClick={() => handleToggleStatus(student.id)}
-                  className={`p-3.5 sm:p-4 rounded-2xl border-2 transition-all cursor-pointer tap-active select-none flex items-center justify-between ${
-                    isPresent
-                      ? 'bg-emerald-50/70 border-emerald-300 hover:border-emerald-400'
-                      : isAbsent
-                      ? 'bg-red-50/90 border-red-400 shadow-sm'
-                      : isExcused
-                      ? 'bg-amber-50 border-amber-300'
-                      : 'bg-blue-50 border-blue-300'
-                  }`}
+                  className="bg-white rounded-2xl border border-[#C4C5D7]/60 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:border-[#747686] transition-colors shadow-xs"
                 >
                   <div className="flex items-center gap-3">
-                    {/* Raqam */}
-                    <span className="text-xs font-bold text-slate-400 w-5">
-                      {idx + 1}.
-                    </span>
-
-                    {/* O'quvchi ismi */}
+                    <div className="w-10 h-10 rounded-full bg-[#EAEDFF] text-[#0037B0] font-bold flex items-center justify-center text-sm shrink-0">
+                      {indexStr}
+                    </div>
                     <div>
-                      <h3
-                        className={`text-sm sm:text-base font-bold ${
-                          isAbsent
-                            ? 'text-red-900 line-through decoration-red-400'
-                            : 'text-slate-800'
-                        }`}
-                      >
+                      <h2 className="text-[16px] font-bold text-[#131B2E] leading-snug">
                         {student.name}
-                      </h3>
-                      <p className="text-[11px] text-slate-500">
-                        {student.gender === 'male' ? 'O‘g‘il bola' : 'Qiz bola'}
-                        {attendanceMap[student.id]?.reason && (
-                          <span className="ml-1 text-amber-700 font-medium">
-                            • {attendanceMap[student.id]?.reason}
-                          </span>
-                        )}
+                      </h2>
+                      <p className="text-[12px] text-[#434655]">
+                        ID: #{activeClass.name}-{indexStr}
+                        {student.parent_phone && ` • ${student.parent_phone}`}
                       </p>
                     </div>
                   </div>
 
-                  {/* Holat tugmasi / Indikator */}
-                  <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                    {/* Tezkor status tanlagich */}
-                    <div className="flex items-center bg-white/80 backdrop-blur rounded-xl p-1 border border-slate-200 shadow-xs">
-                      <button
-                        title="Kelgan"
-                        onClick={() => handleSetStatus(student.id, 'PRESENT')}
-                        className={`p-1.5 rounded-lg transition-colors ${
-                          isPresent
-                            ? 'bg-emerald-600 text-white font-bold'
-                            : 'text-slate-400 hover:text-emerald-600'
-                        }`}
-                      >
-                        <Check className="w-4 h-4" />
-                      </button>
-                      <button
-                        title="Sababsiz kelmagan"
-                        onClick={() => handleSetStatus(student.id, 'ABSENT_UNEXCUSED')}
-                        className={`p-1.5 rounded-lg transition-colors ${
-                          isAbsent
-                            ? 'bg-red-600 text-white font-bold'
-                            : 'text-slate-400 hover:text-red-600'
-                        }`}
-                      >
-                        <XCircle className="w-4 h-4" />
-                      </button>
-                      <button
-                        title="Kechikkan"
-                        onClick={() => handleSetStatus(student.id, 'LATE')}
-                        className={`p-1.5 rounded-lg transition-colors ${
-                          isLate
-                            ? 'bg-blue-600 text-white font-bold'
-                            : 'text-slate-400 hover:text-blue-600'
-                        }`}
-                      >
-                        <Clock className="w-4 h-4" />
-                      </button>
-                    </div>
+                  {/* Segmented 3-talik tugmalar guruhi */}
+                  <div className="flex items-center gap-1.5 w-full sm:w-auto bg-[#F1F5F9] p-1.5 rounded-xl self-end sm:self-auto">
+                    <button
+                      type="button"
+                      onClick={() => handleSetStatus(student.id, 'PRESENT')}
+                      className={`flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-[13px] font-semibold transition-all ${
+                        isPresent
+                          ? 'bg-[#10B981] text-white shadow-sm'
+                          : 'text-[#475569] hover:text-[#131B2E]'
+                      }`}
+                    >
+                      Bor
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSetStatus(student.id, 'ABSENT_UNEXCUSED')}
+                      className={`flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-[13px] font-semibold transition-all ${
+                        isAbsent
+                          ? 'bg-[#F43F5E] text-white shadow-sm'
+                          : 'text-[#475569] hover:text-[#131B2E]'
+                      }`}
+                    >
+                      Yo‘q
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSetStatus(student.id, 'LATE')}
+                      className={`flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-[13px] font-semibold transition-all ${
+                        isLate
+                          ? 'bg-[#F59E0B] text-white shadow-sm'
+                          : 'text-[#475569] hover:text-[#131B2E]'
+                      }`}
+                    >
+                      Kechikkan
+                    </button>
                   </div>
                 </div>
               );
             })}
           </div>
 
-          {/* Pastki qatorda o'tiruvchi yirik "Topshirish" paneli (Mobile sticky) */}
-          <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t border-slate-200 p-3 sm:p-4 shadow-lg">
-            <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
-              <div className="text-xs sm:text-sm font-semibold text-slate-700 hidden sm:block">
-                <span>{activeClass.name} sinf: </span>
-                <span className="text-emerald-600">{present} keldi</span>,{' '}
-                <span className="text-red-600">{absent} kelmadi</span>
+          {/* Sticky Execution Tray (Pastki yopishqoq panel - Stitch 1:1) */}
+          <div className="fixed bottom-0 left-0 w-full bg-white border-t border-[#C4C5D7]/70 p-4 shadow-[0_-4px_12px_rgba(15,23,42,0.06)] z-50">
+            <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+              <div className="hidden sm:block">
+                <p className="text-[14px] font-bold text-[#131B2E]">
+                  {activeClass.name} sinfi davomati
+                </p>
+                <p className="text-[12px] text-[#434655]">
+                  {total} ta o‘quvchidan {present} tasi darsda, {absent} tasi kelmagan
+                </p>
               </div>
 
-              <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="flex items-center gap-2.5 w-full sm:w-auto">
                 <button
                   onClick={() => setActiveClass(null)}
-                  className="w-1/3 sm:w-auto px-4 py-3 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs sm:text-sm hover:bg-slate-50 transition-colors"
+                  className="w-1/3 sm:w-auto px-4 py-2.5 rounded-xl border border-[#C4C5D7] text-[#434655] font-semibold text-sm hover:bg-[#F2F3FF]"
                 >
                   Orqaga
                 </button>
                 <button
                   onClick={handleSaveAndSubmit}
                   disabled={saving}
-                  className="w-2/3 sm:w-auto flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/20 transition-all active:scale-95"
+                  className="w-2/3 sm:w-auto flex-1 sm:flex-none min-h-[48px] px-6 bg-[#1D4ED8] hover:bg-[#0037B0] text-white text-[14px] font-bold rounded-xl shadow-md active:scale-[0.98] transition-transform duration-150 flex items-center justify-center gap-2"
                 >
-                  <Send className="w-4 h-4" />
-                  <span>{saving ? 'Saqlanmoqda...' : 'Davomatni topshirish'}</span>
+                  <span className="material-symbols-outlined text-[20px]">send</span>
+                  <span>{saving ? 'Saqlanmoqda...' : 'Davomatni tasdiqlash va yuborish'}</span>
                 </button>
               </div>
             </div>

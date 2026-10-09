@@ -5,7 +5,7 @@ import dns from 'dns';
 // marshrutlanmagan IPv6 manzillarni qaytarishi sababli ETIMEDOUT yuzaga keladi.
 // Ushbu filtr faqat haqiqiy ochiq IPv4 manzillar orqali ulanishni ta'minlaydi (1 soniyadan kam vaqtda ulanadi).
 const origLookup = dns.lookup;
-dns.lookup = function (hostname: any, options: any, callback: any) {
+(dns.lookup as any) = function (hostname: any, options: any, callback: any) {
   if (typeof options === 'function') {
     callback = options;
     options = {};

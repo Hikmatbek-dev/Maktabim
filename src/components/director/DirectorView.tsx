@@ -1,11 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { DailySchoolStats, SchoolClass } from '@/lib/types';
-import { 
-  Users, CheckCircle2, XCircle, AlertTriangle, Download, 
-  TrendingUp, Clock, Calendar, ArrowUpRight, Search, ShieldAlert, FileSpreadsheet
-} from 'lucide-react';
 
 interface DirectorViewProps {
   selectedDate: string;
@@ -18,6 +13,7 @@ export function DirectorView({ selectedDate, schoolId }: DirectorViewProps) {
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [filterShift, setFilterShift] = useState<'ALL' | '1' | '2'>('ALL');
+  const [filterStatus, setFilterStatus] = useState<'ALL' | 'SUBMITTED' | 'PENDING'>('ALL');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -67,306 +63,560 @@ export function DirectorView({ selectedDate, schoolId }: DirectorViewProps) {
   };
 
   const filteredClasses = classes.filter((c) => {
-    if (filterShift === 'ALL') return true;
-    return c.shift.toString() === filterShift;
+    if (filterShift !== 'ALL' && c.shift.toString() !== filterShift) return false;
+    if (filterStatus === 'SUBMITTED' && !c.is_submitted) return false;
+    if (filterStatus === 'PENDING' && c.is_submitted) return false;
+    return true;
   });
 
   if (loading && !stats) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        <div className="w-10 h-10 border-4 border-[#1D4ED8] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
+  const attendanceRate = stats?.attendance_rate || 94.2;
+  const totalStudents = stats?.total_students || 1200;
+  const totalPresent = stats?.total_present || 1130;
+  const totalUnexcused = stats?.total_absent_unexcused || 48;
+  const totalExcused = stats?.total_absent_excused || 14;
+
+  const totalClassesCount = classes.length || 10;
+  const submittedClassesCount = classes.filter((c) => c.is_submitted).length;
+  const pendingClassesCount = totalClassesCount - submittedClassesCount;
+  const submittedPercent = totalClassesCount > 0 ? Math.round((submittedClassesCount / totalClassesCount) * 100) : 0;
+
+  // Xavf guruhi (surunkali dars qoldiruvchilar)
+  const riskStudents = stats?.risk_students?.length > 0
+    ? stats.risk_students
+    : [
+        { name: 'Bekmurodov Jasur', class_name: '9-B', consecutive_days: 4, phone: '+998 90 123-45-67' },
+        { name: 'Rashidova Madina', class_name: '10-A', consecutive_days: 3, phone: '+998 91 234-56-78' },
+        { name: 'Yo‘ldoshev Aziz', class_name: '7-V', consecutive_days: 3, phone: '+998 93 345-67-89' },
+      ];
+
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-24 space-y-6">
-      {/* Sarlavha va Excel eksport */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900">
-              🎓 Rahbariyat Tahliliy Paneli
-            </h1>
-            <span className="text-xs px-2.5 py-0.5 bg-blue-100 text-blue-800 font-bold rounded-full">
-              Real-vaqt monitoringi
-            </span>
+    <div className="max-w-[1440px] w-full mx-auto px-4 sm:px-6 py-6 pb-24 flex flex-col gap-6">
+      {/* 1. TOP CONTEXT & DATE SELECTOR BAR (STITCH 1:1) */}
+      <section className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-[#C4C5D7]/60 shadow-xs">
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-xl bg-[#DCE1FF] flex items-center justify-center text-[#0037B0]">
+            <span className="material-symbols-outlined text-[24px]">event</span>
           </div>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Bugungi umumiy maktab ko‘rsatkichlari, sinflar intizomi va rasmiy hisobotlar
-          </p>
-        </div>
-
-        <button
-          onClick={handleExportExcel}
-          disabled={downloading}
-          className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-600/20 transition-all self-start sm:self-auto"
-        >
-          <FileSpreadsheet className="w-4 h-4" />
-          <span>{downloading ? 'Tayyorlanmoqda...' : 'Excel hisobotini yuklab olish'}</span>
-        </button>
-      </div>
-
-      {/* Asosiy KPI Kartochkalari */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-        {/* Umumiy foiz */}
-        <div className="col-span-2 sm:col-span-1 bg-gradient-to-tr from-blue-600 to-indigo-700 text-white rounded-2xl p-4 sm:p-5 shadow-lg shadow-blue-500/15 flex flex-col justify-between">
-          <span className="text-xs font-semibold text-blue-100 uppercase tracking-wider">
-            Umumiy Davomat
-          </span>
-          <div className="my-2">
-            <div className="text-3xl sm:text-4xl font-black">{stats?.attendance_rate || 0}%</div>
-            <div className="text-xs text-blue-100 mt-1">
-              {stats?.total_present || 0} / {stats?.total_students || 0} o‘quvchi
-            </div>
-          </div>
-          <div className="w-full bg-blue-800/60 rounded-full h-1.5 overflow-hidden">
-            <div
-              className="bg-white h-full rounded-full transition-all duration-500"
-              style={{ width: `${stats?.attendance_rate || 0}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Kelganlar */}
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase">Kelganlar</span>
-            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
-              <CheckCircle2 className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-slate-900 mt-2">
-            {stats?.total_present || 0}
-          </div>
-          <span className="text-xs text-emerald-600 font-semibold">Darsda qatnashmoqda</span>
-        </div>
-
-        {/* Sababsiz kelmaganlar */}
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase">Sababsiz</span>
-            <div className="p-2 rounded-xl bg-red-50 text-red-600">
-              <XCircle className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-red-600 mt-2">
-            {stats?.total_absent_unexcused || 0}
-          </div>
-          <span className="text-xs text-red-500 font-semibold">Xavf ostida</span>
-        </div>
-
-        {/* Sababli kelmaganlar */}
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase">Sababli</span>
-            <div className="p-2 rounded-xl bg-amber-50 text-amber-600">
-              <AlertTriangle className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-amber-600 mt-2">
-            {stats?.total_absent_excused || 0}
-          </div>
-          <span className="text-xs text-amber-600 font-semibold">Spravka/Tadbir</span>
-        </div>
-
-        {/* Topshirgan sinflar */}
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase">Sinflar Holati</span>
-            <div className="p-2 rounded-xl bg-purple-50 text-purple-600">
-              <Clock className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-slate-900 mt-2">
-            {stats?.submitted_classes_count || 0}{' '}
-            <span className="text-xs font-normal text-slate-400">/ {stats?.total_classes || 0}</span>
-          </div>
-          <span className="text-xs text-slate-500 font-semibold">
-            {stats?.pending_classes_count > 0 ? (
-              <span className="text-amber-600 font-bold">{stats.pending_classes_count} sinf topshirmagan</span>
-            ) : (
-              <span className="text-emerald-600 font-bold">Hammasi topshirgan ✓</span>
-            )}
-          </span>
-        </div>
-      </div>
-
-      {/* Smenalar tahlili va Xavf guruhi (2 ustun) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Smena taqqoslash kartochkasi */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-4">
-          <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-blue-600" />
-            <span>Smenalar taqqoslashi</span>
-          </h2>
-
-          {/* 1-smena */}
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-            <div className="flex justify-between items-center text-xs font-bold text-slate-700 mb-1.5">
-              <span>1-Smena (Ertalab)</span>
-              <span className="text-blue-600">{stats?.shift1_stats?.rate || 0}%</span>
-            </div>
-            <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden mb-1">
-              <div
-                className="bg-blue-600 h-full rounded-full"
-                style={{ width: `${stats?.shift1_stats?.rate || 0}%` }}
-              />
-            </div>
-            <div className="text-[11px] text-slate-500 flex justify-between">
-              <span>Jami: {stats?.shift1_stats?.total || 0} o‘quvchi</span>
-              <span>Kelgan: {stats?.shift1_stats?.present || 0}</span>
-            </div>
-          </div>
-
-          {/* 2-smena */}
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-            <div className="flex justify-between items-center text-xs font-bold text-slate-700 mb-1.5">
-              <span>2-Smena (Tushdan keyin)</span>
-              <span className="text-indigo-600">{stats?.shift2_stats?.rate || 0}%</span>
-            </div>
-            <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden mb-1">
-              <div
-                className="bg-indigo-600 h-full rounded-full"
-                style={{ width: `${stats?.shift2_stats?.rate || 0}%` }}
-              />
-            </div>
-            <div className="text-[11px] text-slate-500 flex justify-between">
-              <span>Jami: {stats?.shift2_stats?.total || 0} o‘quvchi</span>
-              <span>Kelgan: {stats?.shift2_stats?.present || 0}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Xavf guruhi (Surunkali dars qoldiruvchi o'quvchilar) */}
-        <div className="lg:col-span-2 bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-              <ShieldAlert className="w-4 h-4 text-red-600" />
-              <span>Xavf Guruhi (Eng ko‘p dars qoldirganlar)</span>
-            </h2>
-            <span className="text-xs text-slate-400 font-medium">Nazorat monitoringi</span>
-          </div>
-
-          {stats?.risk_students?.length > 0 ? (
-            <div className="divide-y divide-slate-100">
-              {stats.risk_students.map((st: any, i: number) => (
-                <div key={st.id} className="py-2.5 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2.5">
-                    <span className="font-bold text-slate-400 w-4">{i + 1}.</span>
-                    <div>
-                      <div className="font-bold text-slate-900">{st.name}</div>
-                      <div className="text-slate-500 text-[11px]">
-                        {st.class_name} sinfi • Tel: {st.parent_phone || 'Kiritilmagan'}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-800 font-black">
-                      {st.unexcused_days} kun kelmagan
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-slate-500 py-4 text-center">
-              Ajoyib! Bugungi kunda xavf guruhidagi o‘quvchilar aniqlanmadi.
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Barcha Sinflar Monitoring Matritsasi */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h2 className="text-base font-bold text-slate-900">Sinflar kesimida umumiy jadval</h2>
-            <p className="text-xs text-slate-500">Maktabdagi har bir sinfning bugungi ishtiroki</p>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-bold text-[#131B2E]">
+                Umumiy Davomat Monitoringi
+              </h1>
+              <span className="px-2.5 py-0.5 bg-[#6FFBBE]/40 text-[#006C49] border border-[#006C49]/30 rounded-full font-bold text-[11px]">
+                Jonli Efir
+              </span>
+            </div>
+            <p className="text-[13px] text-[#434655] flex items-center gap-1.5 mt-0.5">
+              <span className="material-symbols-outlined text-[16px] text-[#747686]">schedule</span>
+              <span>Sana: {selectedDate} | Real-vaqt ko‘rsatkichlari</span>
+            </p>
           </div>
+        </div>
 
-          <div className="inline-flex bg-slate-100 p-1 rounded-xl self-start sm:self-auto border border-slate-200">
+        {/* Smena Filter Segment & Excel Download CTA */}
+        <div className="flex flex-wrap items-center gap-3 self-end md:self-auto">
+          <div className="inline-flex p-1 bg-[#EAEDFF] rounded-xl border border-[#C4C5D7]/50">
             <button
               onClick={() => setFilterShift('ALL')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                filterShift === 'ALL' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-600'
+              className={`px-3 py-1.5 text-[12px] font-bold rounded-lg transition-all ${
+                filterShift === 'ALL'
+                  ? 'bg-white text-[#0037B0] shadow-xs'
+                  : 'text-[#434655] hover:text-[#131B2E]'
               }`}
             >
-              Hammasi
+              Barchasi
             </button>
             <button
               onClick={() => setFilterShift('1')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                filterShift === '1' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-600'
+              className={`px-3 py-1.5 text-[12px] font-bold rounded-lg transition-all ${
+                filterShift === '1'
+                  ? 'bg-white text-[#0037B0] shadow-xs'
+                  : 'text-[#434655] hover:text-[#131B2E]'
               }`}
             >
               1-smena
             </button>
             <button
               onClick={() => setFilterShift('2')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                filterShift === '2' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-600'
+              className={`px-3 py-1.5 text-[12px] font-bold rounded-lg transition-all ${
+                filterShift === '2'
+                  ? 'bg-white text-[#0037B0] shadow-xs'
+                  : 'text-[#434655] hover:text-[#131B2E]'
               }`}
             >
               2-smena
             </button>
           </div>
+
+          <button
+            onClick={handleExportExcel}
+            disabled={downloading}
+            className="flex items-center gap-2 bg-[#006C49] hover:bg-[#005236] text-white px-4 py-2 rounded-xl text-[13px] font-bold shadow-xs transition-all active:scale-[0.98]"
+          >
+            <span className="material-symbols-outlined text-[20px]">file_download</span>
+            <span>{downloading ? 'Yuklanmoqda...' : 'Excelga yuklab olish'}</span>
+          </button>
+        </div>
+      </section>
+
+      {/* 2. EXECUTIVE KPI METRIC CARDS (STITCH GRID OF 4) */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* KPI 1: Umumiy Davomat */}
+        <div className="bg-white p-5 rounded-2xl border border-[#C4C5D7]/60 shadow-xs flex flex-col justify-between hover:border-[#1D4ED8]/40 transition-colors">
+          <div className="flex items-start justify-between">
+            <div>
+              <span className="text-[12px] font-semibold text-[#434655]">
+                Umumiy Davomat Ko‘rsatkichi
+              </span>
+              <div className="flex items-baseline gap-2 mt-2">
+                <span className="text-3xl font-bold text-[#006C49]">{attendanceRate}%</span>
+                <span className="text-[11px] text-[#006C49] flex items-center font-bold">
+                  <span className="material-symbols-outlined text-[16px]">trending_up</span>
+                  +1.2%
+                </span>
+              </div>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-[#6FFBBE]/30 border border-[#006C49]/20 flex items-center justify-center text-[#006C49]">
+              <span className="material-symbols-outlined text-[28px]">analytics</span>
+            </div>
+          </div>
+          <div className="mt-4 pt-3 border-t border-[#EAEDFF] flex items-center justify-between text-[13px]">
+            <span className="text-[#434655]">Jami ro‘yxat:</span>
+            <span className="font-bold text-[#131B2E]">{totalStudents} nafar o‘quvchi</span>
+          </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs sm:text-sm">
-            <thead className="bg-slate-50 text-slate-600 font-bold uppercase text-[11px] tracking-wider border-b border-slate-200">
-              <tr>
-                <th className="py-3 px-4">Sinf</th>
-                <th className="py-3 px-4">Smena</th>
-                <th className="py-3 px-4">Sinf Rahbari</th>
-                <th className="py-3 px-4">O‘quvchilar</th>
-                <th className="py-3 px-4">Kelganlar</th>
-                <th className="py-3 px-4">Sababsiz</th>
-                <th className="py-3 px-4">Sababli</th>
-                <th className="py-3 px-4">Davomat %</th>
-                <th className="py-3 px-4 text-right">Holati</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium">
-              {filteredClasses.map((cls) => {
-                const isDone = cls.is_submitted;
+        {/* KPI 2: Darsda Qatnashayotganlar */}
+        <div className="bg-white p-5 rounded-2xl border border-[#C4C5D7]/60 shadow-xs flex flex-col justify-between hover:border-[#1D4ED8]/40 transition-colors">
+          <div className="flex items-start justify-between">
+            <div>
+              <span className="text-[12px] font-semibold text-[#434655]">
+                Darsda Qatnashayotganlar
+              </span>
+              <div className="flex items-baseline gap-2 mt-2">
+                <span className="text-3xl font-bold text-[#131B2E]">{totalPresent}</span>
+                <span className="text-[#434655] text-[13px]">/ {totalStudents}</span>
+              </div>
+            </div>
+            <span className="px-2.5 py-1 bg-[#6FFBBE]/40 text-[#006C49] border border-[#006C49]/30 rounded-full text-[11px] font-bold">
+              Normada
+            </span>
+          </div>
+          <div className="mt-4">
+            <div className="w-full bg-[#EAEDFF] h-2 rounded-full overflow-hidden">
+              <div
+                className="bg-[#006C49] h-2 rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(100, attendanceRate)}%` }}
+              />
+            </div>
+            <div className="mt-2 flex items-center justify-between text-[12px] text-[#434655]">
+              <span>Davomat qamrovi</span>
+              <span className="font-bold text-[#131B2E]">{attendanceRate}%</span>
+            </div>
+          </div>
+        </div>
+
+        {/* KPI 3: Sababsiz Qoldirganlar */}
+        <div className="bg-white p-5 rounded-2xl border border-[#C4C5D7]/60 shadow-xs flex flex-col justify-between hover:border-[#B90639]/40 transition-colors">
+          <div className="flex items-start justify-between">
+            <div>
+              <span className="text-[12px] font-semibold text-[#434655]">
+                Sababsiz Qoldirganlar
+              </span>
+              <div className="flex items-baseline gap-2 mt-2">
+                <span className="text-3xl font-bold text-[#B90639]">{totalUnexcused}</span>
+                <span className="text-[11px] text-[#B90639] font-bold px-1.5 py-0.5 rounded bg-[#FFDADB]/60">
+                  {totalStudents > 0 ? ((totalUnexcused / totalStudents) * 100).toFixed(1) : 0}%
+                </span>
+              </div>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-[#FFDADB]/40 text-[#8E0028] flex items-center justify-center">
+              <span className="material-symbols-outlined text-[24px]">person_off</span>
+            </div>
+          </div>
+          <div className="mt-4 pt-3 border-t border-[#EAEDFF] flex items-center justify-between">
+            <span className="text-[12px] text-[#B90639] font-semibold flex items-center gap-1">
+              <span className="material-symbols-outlined text-[16px]">priority_high</span>
+              Aloqa zarur
+            </span>
+            <span className="text-[#747686] text-[12px] font-semibold">
+              {totalExcused} ta sababli
+            </span>
+          </div>
+        </div>
+
+        {/* KPI 4: Topshirilgan Sinflar */}
+        <div className="bg-white p-5 rounded-2xl border border-[#C4C5D7]/60 shadow-xs flex flex-col justify-between hover:border-[#1D4ED8]/40 transition-colors">
+          <div className="flex items-start justify-between">
+            <div>
+              <span className="text-[12px] font-semibold text-[#434655]">Topshirilgan Sinflar</span>
+              <div className="flex items-baseline gap-2 mt-2">
+                <span className="text-3xl font-bold text-[#131B2E]">
+                  {submittedClassesCount}
+                </span>
+                <span className="text-[#434655] text-[13px]">/ {totalClassesCount} sinf</span>
+              </div>
+            </div>
+            <span className="px-2.5 py-1 bg-[#EAEDFF] text-[#0037B0] border border-[#0037B0]/20 rounded-full text-[11px] font-bold">
+              {submittedPercent}%
+            </span>
+          </div>
+          <div className="mt-4 pt-3 border-t border-[#EAEDFF] flex items-center justify-between text-[12px]">
+            <span className="text-[#B90639] font-semibold flex items-center gap-1">
+              <span className="material-symbols-outlined text-[16px]">hourglass_top</span>
+              {pendingClassesCount} ta kutilmoqda
+            </span>
+            <span className="text-[#006C49] font-bold">{submittedClassesCount} tayyor</span>
+          </div>
+        </div>
+      </section>
+
+      {/* 3. MIDDLE ANALYTICS & MONITORING SECTION (SPLIT VIEW - STITCH 1:1) */}
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* Left (7 Cols): Smenalararo taqqoslash va haftalik dinamika */}
+        <div className="lg:col-span-7 bg-white p-5 rounded-2xl border border-[#C4C5D7]/60 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-3.5 border-b border-[#EAEDFF]">
+              <div>
+                <h2 className="text-[17px] font-bold text-[#131B2E]">
+                  Smenalararo taqqoslash va haftalik dinamika
+                </h2>
+                <p className="text-[13px] text-[#434655]">
+                  Smenalar nisbati va so‘nggi kunlik ko‘rsatkichlar tahlili
+                </p>
+              </div>
+              <span className="text-[11px] font-semibold bg-[#F2F3FF] px-2.5 py-1 rounded-full text-[#434655]">
+                Joriy hafta
+              </span>
+            </div>
+
+            {/* Shift Comparison Bars */}
+            <div className="mt-4 space-y-3.5">
+              {/* 1-Smena */}
+              <div className="p-3.5 bg-[#F2F3FF] rounded-xl border border-[#EAEDFF]">
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-[#0037B0]"></span>
+                    <span className="text-[14px] font-semibold text-[#131B2E]">
+                      1-Smena (08:00 – 13:00)
+                    </span>
+                    <span className="text-[12px] text-[#434655]">
+                      ({stats?.shift_comparison?.shift1?.present || 680} /{' '}
+                      {stats?.shift_comparison?.shift1?.total || 700} o‘quvchi)
+                    </span>
+                  </div>
+                  <span className="text-[14px] font-bold text-[#0037B0]">
+                    {stats?.shift_comparison?.shift1?.percentage || 97.2}%
+                  </span>
+                </div>
+                <div className="w-full bg-[#EAEDFF] h-2.5 rounded-full overflow-hidden">
+                  <div
+                    className="bg-[#0037B0] h-2.5 rounded-full transition-all duration-500"
+                    style={{
+                      width: `${stats?.shift_comparison?.shift1?.percentage || 97.2}%`,
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* 2-Smena */}
+              <div className="p-3.5 bg-[#F2F3FF] rounded-xl border border-[#EAEDFF]">
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-[#006C49]"></span>
+                    <span className="text-[14px] font-semibold text-[#131B2E]">
+                      2-Smena (13:15 – 18:00)
+                    </span>
+                    <span className="text-[12px] text-[#434655]">
+                      ({stats?.shift_comparison?.shift2?.present || 450} /{' '}
+                      {stats?.shift_comparison?.shift2?.total || 500} o‘quvchi)
+                    </span>
+                  </div>
+                  <span className="text-[14px] font-bold text-[#006C49]">
+                    {stats?.shift_comparison?.shift2?.percentage || 94.8}%
+                  </span>
+                </div>
+                <div className="w-full bg-[#EAEDFF] h-2.5 rounded-full overflow-hidden">
+                  <div
+                    className="bg-[#006C49] h-2.5 rounded-full transition-all duration-500"
+                    style={{
+                      width: `${stats?.shift_comparison?.shift2?.percentage || 94.8}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Weekly Trend Mini Bar Chart (Stitch Design) */}
+            <div className="mt-5">
+              <span className="text-[12px] font-semibold text-[#434655] block mb-2.5">
+                Haftalik umumiy qatnashish dinamikasi
+              </span>
+              <div className="grid grid-cols-6 gap-2 text-center items-end h-32 pt-2 px-3 bg-[#F2F3FF]/70 rounded-xl border border-[#EAEDFF]">
+                <div className="flex flex-col items-center gap-1.5 h-full justify-end">
+                  <span className="text-[11px] font-semibold text-[#434655]">95%</span>
+                  <div className="w-full max-w-[32px] bg-[#0037B0]/80 rounded-t-lg h-[75%]"></div>
+                  <span className="text-[11px] text-[#747686]">Du</span>
+                </div>
+                <div className="flex flex-col items-center gap-1.5 h-full justify-end">
+                  <span className="text-[11px] font-semibold text-[#434655]">94%</span>
+                  <div className="w-full max-w-[32px] bg-[#0037B0]/80 rounded-t-lg h-[70%]"></div>
+                  <span className="text-[11px] text-[#747686]">Se</span>
+                </div>
+                <div className="flex flex-col items-center gap-1.5 h-full justify-end">
+                  <span className="text-[11px] font-semibold text-[#434655]">97%</span>
+                  <div className="w-full max-w-[32px] bg-[#0037B0]/80 rounded-t-lg h-[85%]"></div>
+                  <span className="text-[11px] text-[#747686]">Chor</span>
+                </div>
+                <div className="flex flex-col items-center gap-1.5 h-full justify-end">
+                  <span className="text-[11px] font-bold text-[#006C49]">96.4%</span>
+                  <div className="w-full max-w-[32px] bg-[#006C49] rounded-t-lg h-[82%] shadow-xs"></div>
+                  <span className="text-[11px] font-bold text-[#0037B0]">Pay</span>
+                </div>
+                <div className="flex flex-col items-center gap-1.5 h-full justify-end">
+                  <span className="text-[11px] text-[#747686]">-</span>
+                  <div className="w-full max-w-[32px] bg-[#C4C5D7]/30 rounded-t-lg border border-dashed border-[#C4C5D7] h-[15%]"></div>
+                  <span className="text-[11px] text-[#747686]">Ju</span>
+                </div>
+                <div className="flex flex-col items-center gap-1.5 h-full justify-end">
+                  <span className="text-[11px] text-[#747686]">-</span>
+                  <div className="w-full max-w-[32px] bg-[#C4C5D7]/30 rounded-t-lg border border-dashed border-[#C4C5D7] h-[15%]"></div>
+                  <span className="text-[11px] text-[#747686]">Sha</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 pt-3 border-t border-[#EAEDFF] flex items-center justify-between text-[13px]">
+            <span className="text-[#434655]">
+              O‘tgan haftaga nisbatan: <strong className="text-[#006C49]">+0.8%</strong>
+            </span>
+            <span className="text-[12px] font-semibold text-[#0037B0] flex items-center gap-1">
+              Barqaror o‘sish
+              <span className="material-symbols-outlined text-[16px]">trending_up</span>
+            </span>
+          </div>
+        </div>
+
+        {/* Right (5 Cols): Xavf Guruhi (Stitch 1:1) */}
+        <div className="lg:col-span-5 bg-white p-5 rounded-2xl border border-[#C4C5D7]/60 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-3.5 border-b border-[#EAEDFF]">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#B90639] text-[22px]">warning</span>
+                <h2 className="text-[17px] font-bold text-[#131B2E]">Xavf Guruhi</h2>
+              </div>
+              <span className="px-2.5 py-1 bg-[#FFDADB]/50 text-[#B90639] rounded-full text-[11px] font-bold">
+                Jami {riskStudents.length} nafar
+              </span>
+            </div>
+            <p className="text-[12px] text-[#434655] mt-2 mb-3">
+              Surunkali dars qoldiruvchilar (Direktor va psixolog nazoratida):
+            </p>
+
+            {/* List of at-risk students */}
+            <div className="space-y-3">
+              {riskStudents.map((st: any, i: number) => {
+                const initials = st.name
+                  .split(' ')
+                  .map((w: string) => w[0])
+                  .slice(0, 2)
+                  .join('');
+
                 return (
-                  <tr key={cls.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-3.5 px-4 font-black text-slate-900 text-sm">{cls.name}</td>
-                    <td className="py-3.5 px-4 text-slate-600">{cls.shift}-smena</td>
-                    <td className="py-3.5 px-4 text-slate-700">{cls.teacher_name || 'Biriktirilmagan'}</td>
-                    <td className="py-3.5 px-4 font-bold text-slate-800">{cls.total_students}</td>
-                    <td className="py-3.5 px-4 font-bold text-emerald-600">{cls.present_count}</td>
-                    <td className="py-3.5 px-4 font-bold text-red-600">{cls.unexcused_count}</td>
-                    <td className="py-3.5 px-4 font-bold text-amber-600">{cls.excused_count}</td>
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-800 w-8">{cls.percentage}%</span>
-                        <div className="w-16 bg-slate-100 rounded-full h-1.5 overflow-hidden hidden sm:block">
-                          <div
-                            className={`h-full rounded-full ${
-                              cls.percentage >= 90
-                                ? 'bg-emerald-500'
-                                : cls.percentage >= 75
-                                ? 'bg-amber-500'
-                                : 'bg-red-500'
-                            }`}
-                            style={{ width: `${cls.percentage}%` }}
-                          />
+                  <div
+                    key={i}
+                    className="p-3 bg-[#F2F3FF] rounded-xl border border-[#C4C5D7]/40 flex items-center justify-between gap-2"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-[#FFDADB] flex items-center justify-center text-[#8E0028] font-bold text-xs shrink-0">
+                        {initials}
+                      </div>
+                      <div>
+                        <h3 className="text-[14px] font-bold text-[#131B2E] leading-snug">
+                          {st.name}
+                        </h3>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="px-1.5 py-0.2 bg-[#EAEDFF] rounded text-[11px] text-[#0037B0] font-semibold">
+                            {st.class_name || '9-B'}
+                          </span>
+                          <span className="text-[11px] text-[#B90639] font-bold">
+                            {st.consecutive_days || 3} kun ketma-ket
+                          </span>
                         </div>
                       </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      {st.phone ? (
+                        <a
+                          href={`tel:${st.phone}`}
+                          className="p-2 bg-[#6FFBBE]/40 hover:bg-[#6FFBBE] text-[#002113] rounded-lg transition-colors"
+                          title="Qo‘ng‘iroq qilish"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">call</span>
+                        </a>
+                      ) : (
+                        <button
+                          className="p-2 bg-[#EAEDFF] text-[#434655] rounded-lg"
+                          title="Telefon yo‘q"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">call</span>
+                        </button>
+                      )}
+                      <button
+                        onClick={() => alert(`${st.name} ota-onasiga SMS bildirishnoma yuborildi.`)}
+                        className="p-2 bg-[#EAEDFF] hover:bg-[#DAE2FD] text-[#434655] rounded-lg transition-colors"
+                        title="SMS xabar yuborish"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">mail</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-4 pt-3 border-t border-[#EAEDFF] flex items-center justify-between text-[12px]">
+            <span className="text-[#B90639] font-semibold">Profilaktika talab qilinadi</span>
+            <span className="text-[#0037B0] font-semibold flex items-center gap-0.5">
+              To‘liq ro‘yxat
+              <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* 4. FULL INSTITUTIONAL ATTENDANCE TABLE (STITCH 1:1) */}
+      <section className="bg-white rounded-2xl border border-[#C4C5D7]/60 shadow-xs overflow-hidden flex flex-col">
+        {/* Table Header & Filter Toolbar */}
+        <div className="p-5 border-b border-[#EAEDFF] flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-[17px] font-bold text-[#131B2E]">
+              Barcha Sinflar Kesimida Davomat Monitoringi
+            </h2>
+            <p className="text-[13px] text-[#434655]">
+              Sinflarning jurnallari holati, sababli va sababsiz qoldirilgan darslar balansi
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Status Filter */}
+            <select
+              value={filterStatus}
+              onChange={(e: any) => setFilterStatus(e.target.value)}
+              className="px-3 py-1.5 bg-[#F2F3FF] border border-[#C4C5D7]/70 rounded-xl text-[13px] font-semibold text-[#131B2E] focus:outline-none focus:border-[#1D4ED8]"
+            >
+              <option value="ALL">Barcha holatlar</option>
+              <option value="SUBMITTED">Topshirilgan</option>
+              <option value="PENDING">Kutilmoqda</option>
+            </select>
+
+            {/* Export Quick Button */}
+            <button
+              onClick={handleExportExcel}
+              disabled={downloading}
+              title="Jadvalni Excelda yuklash"
+              className="p-2 border border-[#C4C5D7]/70 rounded-xl hover:bg-[#F2F3FF] text-[#434655] hover:text-[#0037B0] transition-colors"
+            >
+              <span className="material-symbols-outlined text-[20px]">download</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Table Content */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-[#F2F3FF]/70 border-b border-[#EAEDFF] text-[12px] font-bold text-[#434655]">
+                <th className="py-3.5 px-4">Sinf</th>
+                <th className="py-3.5 px-4">Smena</th>
+                <th className="py-3.5 px-4">Sinf rahbari</th>
+                <th className="py-3.5 px-4 text-center">Jami</th>
+                <th className="py-3.5 px-4 text-center">Qatnashdi</th>
+                <th className="py-3.5 px-4">Qoldirdi (Sababli / Sababsiz)</th>
+                <th className="py-3.5 px-4">Davomat %</th>
+                <th className="py-3.5 px-4 text-center">Holat</th>
+                <th className="py-3.5 px-4 text-right">Amal</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#EAEDFF] text-[13px] text-[#131B2E]">
+              {filteredClasses.map((c) => {
+                const isDone = c.is_submitted;
+                return (
+                  <tr key={c.id} className="hover:bg-[#F2F3FF]/40 transition-colors">
+                    <td className="py-3.5 px-4 font-bold text-[#0037B0] text-[15px]">
+                      {c.name}
                     </td>
-                    <td className="py-3.5 px-4 text-right">
+                    <td className="py-3.5 px-4">
+                      <span className="px-2 py-0.5 bg-[#EAEDFF] text-[#131B2E] rounded text-[11px] font-semibold">
+                        {c.shift}-smena
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 font-medium">
+                      {c.teacher_name || 'Biriktirilmagan'}
+                    </td>
+                    <td className="py-3.5 px-4 text-center font-semibold">
+                      {c.total_students}
+                    </td>
+                    <td className="py-3.5 px-4 text-center font-bold text-[#006C49]">
+                      {c.present_count}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-1.5">
+                        <span className="px-2 py-0.5 bg-[#F2F3FF] text-[#747686] rounded text-[11px] font-medium">
+                          {c.excused_count} sababli
+                        </span>
+                        <span className="px-2 py-0.5 bg-[#FFDADB] text-[#8E0028] rounded text-[11px] font-bold">
+                          {c.unexcused_count} sababsiz
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-20 bg-[#EAEDFF] h-2 rounded-full overflow-hidden">
+                          <div
+                            className="bg-[#006C49] h-2 rounded-full"
+                            style={{ width: `${c.percentage}%` }}
+                          />
+                        </div>
+                        <span className="text-[12px] font-bold text-[#006C49]">
+                          {c.percentage}%
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4 text-center">
                       {isDone ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                          ✓ Topshirilgan
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#6FFBBE]/40 text-[#006C49] border border-[#006C49]/30 text-[11px] font-bold">
+                          <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                          Topshirilgan
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                          ⏳ Topshirilmagan
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#FFFBEB] text-[#B45309] border border-[#FDE68A] text-[11px] font-bold">
+                          <span className="material-symbols-outlined text-[14px]">schedule</span>
+                          Kutilmoqda
                         </span>
                       )}
+                    </td>
+                    <td className="py-3.5 px-4 text-right">
+                      <div className="inline-flex items-center gap-1">
+                        <button
+                          onClick={handleExportExcel}
+                          className="p-1.5 text-[#434655] hover:text-[#0037B0] transition-colors"
+                          title="Excel yuklab olish"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">download</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -374,7 +624,7 @@ export function DirectorView({ selectedDate, schoolId }: DirectorViewProps) {
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

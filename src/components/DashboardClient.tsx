@@ -51,7 +51,7 @@ export function DashboardClient({ user }: DashboardClientProps) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="min-h-screen bg-[#FAF8FF] text-[#131B2E] flex flex-col font-sans">
       {/* Yuqori navigatsiya paneli */}
       <Navbar
         user={user}

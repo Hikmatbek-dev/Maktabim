@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { User, School } from '@/lib/types';
 import { RoleBadge } from './RoleBadge';
-import { LogOut, Calendar, RefreshCw, UserCheck, School as SchoolIcon, ChevronDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface NavbarProps {
@@ -14,6 +13,7 @@ interface NavbarProps {
   schools?: School[];
   currentSchoolId?: string;
   onSchoolChange?: (schoolId: string) => void;
+  onExportExcel?: () => void;
 }
 
 export function Navbar({
@@ -24,6 +24,7 @@ export function Navbar({
   schools = [],
   currentSchoolId,
   onSchoolChange,
+  onExportExcel,
 }: NavbarProps) {
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
@@ -72,145 +73,181 @@ export function Navbar({
   const currentSchool = schools.find((s) => s.id === currentSchoolId) || schools[0];
 
   return (
-    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200 shadow-xs">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-2">
-          {/* Logo & Maktab Tanlash */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 shrink-0">
-              <span className="font-black text-xl tracking-tight">M</span>
+    <header className="sticky top-0 z-40 w-full bg-white border-b border-[#C4C5D7]/50 shadow-xs">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+        {/* Brand & Organization Picker */}
+        <div className="flex items-center gap-3 sm:gap-5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-[#1D4ED8] flex items-center justify-center text-white shadow-sm shrink-0">
+              <span className="material-symbols-outlined text-[24px]">school</span>
             </div>
-
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-900 text-sm sm:text-base leading-tight">
-                  Maktabim
-                </span>
-
-                {/* Super Admin uchun Maktab tanlagich */}
-                {user.role === 'SUPER_ADMIN' && schools.length > 0 && onSchoolChange ? (
-                  <div className="relative">
-                    <select
-                      value={currentSchoolId || schools[0]?.id}
-                      onChange={(e) => onSchoolChange(e.target.value)}
-                      className="bg-purple-50 text-purple-900 text-[11px] sm:text-xs font-bold rounded-lg px-2 py-1 pr-6 border border-purple-200 focus:outline-none cursor-pointer appearance-none"
-                    >
-                      {schools.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          🏫 {s.name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="w-3 h-3 text-purple-700 absolute right-1.5 top-2 pointer-events-none" />
-                  </div>
-                ) : (
-                  <span className="text-[11px] sm:text-xs font-semibold px-2 py-0.5 bg-blue-50 text-blue-800 rounded-md truncate max-w-[150px] sm:max-w-[220px]">
-                    🏫 {currentSchool?.name || user.school_name || '1-sonli maktab'}
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] text-slate-400 hidden sm:block">
-                Elektron davomat monitoring platformasi
-              </p>
+            <div className="hidden sm:block">
+              <span className="text-[17px] font-bold text-[#0037B0] tracking-tight block leading-tight">
+                Maktabim EdTech
+              </span>
+              <span className="text-[11px] text-[#434655] font-medium block">
+                Davomat monitoring tizimi
+              </span>
             </div>
           </div>
 
-          {/* O'rta qism: Sana tanlagich & Yangilash */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <div className="flex items-center bg-slate-100/90 rounded-xl p-1 text-xs border border-slate-200">
-              <Calendar className="w-4 h-4 text-slate-500 ml-1.5 mr-1 hidden sm:block" />
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => onDateChange(e.target.value)}
-                className="bg-transparent text-slate-800 font-bold py-1 px-1.5 focus:outline-none cursor-pointer text-xs"
-              />
+          <div className="h-6 w-[1px] bg-[#C4C5D7]/60 hidden md:block"></div>
+
+          {/* School Picker Menu */}
+          {user.role === 'SUPER_ADMIN' && schools.length > 0 && onSchoolChange ? (
+            <div className="relative">
+              <div className="flex items-center gap-2 bg-[#F2F3FF] hover:bg-[#EAEDFF] transition-colors duration-150 px-3 py-1.5 rounded-xl border border-[#C4C5D7]/70 text-[#131B2E]">
+                <span className="material-symbols-outlined text-[#1D4ED8] text-[20px]">domain</span>
+                <select
+                  value={currentSchoolId || schools[0]?.id}
+                  onChange={(e) => onSchoolChange(e.target.value)}
+                  className="bg-transparent text-[13px] font-semibold text-[#131B2E] focus:outline-none cursor-pointer pr-4 appearance-none"
+                >
+                  {schools.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+                <span className="material-symbols-outlined text-[#747686] text-[18px] pointer-events-none -ml-2">
+                  expand_more
+                </span>
+              </div>
             </div>
-            {onRefresh && (
-              <button
-                onClick={onRefresh}
-                title="Ma'lumotlarni yangilash"
-                className="p-2 rounded-xl text-slate-500 hover:text-blue-600 hover:bg-slate-100 transition-colors"
-              >
-                <RefreshCw className="w-4 h-4" />
-              </button>
+          ) : (
+            <div className="flex items-center gap-2 bg-[#F2F3FF] px-3 py-1.5 rounded-xl border border-[#C4C5D7]/50 text-[#131B2E] max-w-[220px] sm:max-w-xs truncate">
+              <span className="material-symbols-outlined text-[#1D4ED8] text-[20px] shrink-0">domain</span>
+              <span className="text-[13px] font-semibold text-[#131B2E] truncate">
+                {currentSchool?.name || user.school_name || '1-sonli maktab'}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Center: Date picker & Refresh */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center bg-[#F2F3FF] rounded-xl px-2.5 py-1.5 border border-[#C4C5D7]/70">
+            <span className="material-symbols-outlined text-[#1D4ED8] text-[18px] mr-1 hidden sm:block">
+              calendar_today
+            </span>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => onDateChange(e.target.value)}
+              className="bg-transparent text-[#131B2E] font-semibold py-0.5 px-1 focus:outline-none cursor-pointer text-[13px]"
+            />
+          </div>
+
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              title="Ma'lumotlarni yangilash"
+              className="p-2 rounded-xl text-[#434655] hover:text-[#1D4ED8] hover:bg-[#F2F3FF] transition-colors active:scale-95"
+            >
+              <span className="material-symbols-outlined text-[20px]">sync</span>
+            </button>
+          )}
+        </div>
+
+        {/* Right side controls: Role switch & User Profile */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Quick role switch for demo */}
+          <div className="relative">
+            <button
+              onClick={() => setShowSwitchMenu(!showSwitchMenu)}
+              title="Rolni almashtirish (Test)"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-[#131B2E] bg-[#F2F3FF] hover:bg-[#EAEDFF] rounded-xl border border-[#C4C5D7]/70 transition-all active:scale-95"
+            >
+              <span className="material-symbols-outlined text-[#1D4ED8] text-[18px]">badge</span>
+              <span className="hidden md:inline">Rol almashtirish</span>
+            </button>
+
+            {showSwitchMenu && (
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-[#C4C5D7]/70 py-2 z-50">
+                <div className="px-3 py-1.5 text-[11px] font-bold text-[#747686] uppercase tracking-wider">
+                  Tezkor rollar (Stitch Demo)
+                </div>
+                <button
+                  onClick={() => handleQuickSwitch('davomatchi')}
+                  className="w-full text-left px-3.5 py-2 text-[13px] hover:bg-[#EFF6FF] text-[#131B2E] flex items-center justify-between"
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[#1D4ED8] text-[18px]">checklist</span>
+                    Davomatchi (Mobil)
+                  </span>
+                </button>
+                <button
+                  onClick={() => handleQuickSwitch('ustoz')}
+                  className="w-full text-left px-3.5 py-2 text-[13px] hover:bg-[#ECFDF5] text-[#131B2E] flex items-center justify-between"
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[#006C49] text-[18px]">school</span>
+                    Sinf rahbari (5-A)
+                  </span>
+                </button>
+                <button
+                  onClick={() => handleQuickSwitch('direktor')}
+                  className="w-full text-left px-3.5 py-2 text-[13px] hover:bg-[#EFF6FF] text-[#131B2E] flex items-center justify-between"
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[#0037B0] text-[18px]">analytics</span>
+                    Direktor (Desktop)
+                  </span>
+                </button>
+                <button
+                  onClick={() => handleQuickSwitch('zamdirektor')}
+                  className="w-full text-left px-3.5 py-2 text-[13px] hover:bg-[#EFF6FF] text-[#131B2E] flex items-center justify-between"
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[#0037B0] text-[18px]">supervisor_account</span>
+                    Zamdirektor
+                  </span>
+                </button>
+                <button
+                  onClick={() => handleQuickSwitch('admin')}
+                  className="w-full text-left px-3.5 py-2 text-[13px] hover:bg-[#FDF2F8] text-[#131B2E] flex items-center justify-between"
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[#8E0028] text-[18px]">admin_panel_settings</span>
+                    Super Admin
+                  </span>
+                </button>
+              </div>
             )}
           </div>
 
-          {/* O'ng qism: Foydalanuvchi ma'lumotlari & Chiqish */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="hidden lg:flex flex-col items-end">
-              <span className="text-sm font-semibold text-slate-800 leading-tight">
+          {/* User Profile Pill */}
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-[#1D4ED8] text-white flex items-center justify-center font-bold text-sm shadow-xs">
+              {user.name.charAt(0)}
+            </div>
+            <div className="hidden lg:flex flex-col text-left">
+              <span className="text-[13px] font-semibold text-[#131B2E] leading-tight">
                 {user.name}
               </span>
-              <RoleBadge role={user.role} className="mt-0.5" />
+              <span className="text-[11px] text-[#434655]">
+                {user.role === 'SUPER_ADMIN'
+                  ? 'Super Admin'
+                  : user.role === 'DIRECTOR'
+                  ? 'Maktab Direktori'
+                  : user.role === 'DEPUTY_DIRECTOR'
+                  ? 'O‘IBDO‘ (Zamdirektor)'
+                  : user.role === 'INSPECTOR'
+                  ? 'Davomatchi'
+                  : 'Sinf Rahbari'}
+              </span>
             </div>
-
-            {/* Tezkor Rol almashtirish tugmasi */}
-            <div className="relative">
-              <button
-                onClick={() => setShowSwitchMenu(!showSwitchMenu)}
-                title="Rolni almashtirish (Test rejimi)"
-                className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl border border-slate-200 transition-colors"
-              >
-                <UserCheck className="w-3.5 h-3.5 text-blue-600" />
-                <span className="hidden sm:inline">Rol almashtirish</span>
-              </button>
-
-              {showSwitchMenu && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in slide-in-from-top-2">
-                  <div className="px-3 py-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                    Tezkor sinov rollari
-                  </div>
-                  <button
-                    onClick={() => handleQuickSwitch('davomatchi')}
-                    className="w-full text-left px-3 py-2 text-xs hover:bg-amber-50 text-slate-700 flex items-center justify-between"
-                  >
-                    <span>📱 Davomatchi</span>
-                    <span className="text-slate-400 text-[10px]">davomatchi</span>
-                  </button>
-                  <button
-                    onClick={() => handleQuickSwitch('ustoz')}
-                    className="w-full text-left px-3 py-2 text-xs hover:bg-emerald-50 text-slate-700 flex items-center justify-between"
-                  >
-                    <span>👩‍🏫 Sinf rahbari (5-A)</span>
-                    <span className="text-slate-400 text-[10px]">ustoz</span>
-                  </button>
-                  <button
-                    onClick={() => handleQuickSwitch('direktor')}
-                    className="w-full text-left px-3 py-2 text-xs hover:bg-blue-50 text-slate-700 flex items-center justify-between"
-                  >
-                    <span>🎓 Direktor</span>
-                    <span className="text-slate-400 text-[10px]">direktor</span>
-                  </button>
-                  <button
-                    onClick={() => handleQuickSwitch('zamdirektor')}
-                    className="w-full text-left px-3 py-2 text-xs hover:bg-indigo-50 text-slate-700 flex items-center justify-between"
-                  >
-                    <span>📋 Zamdirektor</span>
-                    <span className="text-slate-400 text-[10px]">zamdirektor</span>
-                  </button>
-                  <button
-                    onClick={() => handleQuickSwitch('admin')}
-                    className="w-full text-left px-3 py-2 text-xs hover:bg-purple-50 text-slate-700 flex items-center justify-between"
-                  >
-                    <span>🛡️ Super Admin</span>
-                    <span className="text-slate-400 text-[10px]">admin</span>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Chiqish tugmasi */}
-            <button
-              onClick={handleLogout}
-              disabled={loggingOut}
-              title="Tizimdan chiqish"
-              className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-            >
-              <LogOut className="w-5 h-5" />
-            </button>
           </div>
+
+          {/* Logout button */}
+          <button
+            onClick={handleLogout}
+            disabled={loggingOut}
+            title="Tizimdan chiqish"
+            className="p-2 rounded-xl text-[#747686] hover:text-[#BA1A1A] hover:bg-[#FFDAD6]/40 transition-colors active:scale-95"
+          >
+            <span className="material-symbols-outlined text-[20px]">logout</span>
+          </button>
         </div>
       </div>
     </header>
