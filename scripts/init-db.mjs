@@ -1,8 +1,38 @@
 import pg from 'pg';
 import bcrypt from 'bcryptjs';
+import dns from 'dns';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+
+// DNS patch for AWS/Neon CGNAT private IP and IPv6
+const origLookup = dns.lookup;
+dns.lookup = function (hostname, options, callback) {
+  if (typeof options === 'function') {
+    callback = options;
+    options = {};
+  }
+  return origLookup(hostname, { ...options, all: true }, (err, addresses) => {
+    if (err) return callback(err);
+    if (Array.isArray(addresses)) {
+      const publicIpv4 = addresses.filter((a) => {
+        if (a.family !== 4) return false;
+        if (a.address.startsWith('100.')) {
+          const second = parseInt(a.address.split('.')[1] || '0', 10);
+          if (second >= 64 && second <= 127) return false;
+        }
+        return true;
+      });
+      const chosen = publicIpv4.length > 0 ? publicIpv4 : addresses;
+      if (options && options.all) {
+        return callback(null, chosen);
+      } else {
+        return callback(null, chosen[0].address, chosen[0].family);
+      }
+    }
+    return callback(null, addresses);
+  });
+};
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,7 +55,7 @@ if (fs.existsSync(envPath)) {
 }
 
 if (!databaseUrl) {
-  databaseUrl = 'postgresql://bozkurt@localhost:5432/maktabim_db';
+  databaseUrl = 'postgresql://bozkurt:maktabim123@localhost:5432/maktabim_db';
 }
 
 console.log('Connecting to database:', databaseUrl.replace(/:[^:@]+@/, ':****@'));
@@ -43,28 +73,39 @@ async function run() {
     await client.query(schemaSql);
     console.log('✓ Tables and indexes created successfully.');
 
+    console.log('--- Seeding Schools ---');
+    await client.query(`
+      INSERT INTO schools (id, name, code, region, district, address, phone)
+      VALUES 
+        ('sch_1', '1-sonli ixtisoslashtirilgan davlat maktabi', 'MAK-001', 'Toshkent shahri', 'Yunusobod tumani', 'Amir Temur ko‘chasi, 45', '+998712345678'),
+        ('sch_2', '21-sonli umumtaʼlim maktabi', 'MAK-021', 'Samarqand viloyati', 'Samarqand shahri', 'Buyuk Ipak Yo‘li, 12', '+998662334455')
+      ON CONFLICT (id) DO UPDATE 
+      SET name = EXCLUDED.name, region = EXCLUDED.region, district = EXCLUDED.district;
+    `);
+    console.log('✓ 2 schools seeded.');
+
     console.log('--- Seeding Initial Users ---');
     const salt = await bcrypt.genSalt(10);
     const pwHash = async (pw) => await bcrypt.hash(pw, salt);
 
     const users = [
-      { id: 'usr_admin', name: 'Alisher Qodirov (Admin)', username: 'admin', pw: 'admin123', role: 'SUPER_ADMIN', phone: '+998901234567' },
-      { id: 'usr_dir', name: 'Botir Rahimov (Direktor)', username: 'direktor', pw: 'direktor123', role: 'DIRECTOR', phone: '+998901112233' },
-      { id: 'usr_zam', name: 'Nodira Salimova (Zamdirektor)', username: 'zamdirektor', pw: 'zam123', role: 'DEPUTY_DIRECTOR', phone: '+998902223344' },
-      { id: 'usr_davomat', name: 'Javohir Toirov (Davomatchi)', username: 'davomatchi', pw: 'davomat123', role: 'INSPECTOR', phone: '+998903334455' },
-      { id: 'usr_ustoz_5a', name: 'Gulnoza Karimova (5-A)', username: 'ustoz', pw: 'ustoz123', role: 'TEACHER', phone: '+998904445566' },
-      { id: 'usr_ustoz_9b', name: 'Rustam Ergashev (9-B)', username: 'ustoz_9b', pw: 'ustoz123', role: 'TEACHER', phone: '+998905556677' },
-      { id: 'usr_ustoz_11a', name: 'Dilnoza Yusupova (11-A)', username: 'ustoz_11a', pw: 'ustoz123', role: 'TEACHER', phone: '+998906667788' },
+      { id: 'usr_admin', name: 'Alisher Qodirov (Admin)', username: 'admin', pw: 'admin123', role: 'SUPER_ADMIN', phone: '+998901234567', school_id: null },
+      { id: 'usr_dir', name: 'Botir Rahimov (Direktor)', username: 'direktor', pw: 'direktor123', role: 'DIRECTOR', phone: '+998901112233', school_id: 'sch_1' },
+      { id: 'usr_zam', name: 'Nodira Salimova (Zamdirektor)', username: 'zamdirektor', pw: 'zam123', role: 'DEPUTY_DIRECTOR', phone: '+998902223344', school_id: 'sch_1' },
+      { id: 'usr_davomat', name: 'Javohir Toirov (Davomatchi)', username: 'davomatchi', pw: 'davomat123', role: 'INSPECTOR', phone: '+998903334455', school_id: 'sch_1' },
+      { id: 'usr_ustoz_5a', name: 'Gulnoza Karimova (5-A)', username: 'ustoz', pw: 'ustoz123', role: 'TEACHER', phone: '+998904445566', school_id: 'sch_1' },
+      { id: 'usr_ustoz_9b', name: 'Rustam Ergashev (9-B)', username: 'ustoz_9b', pw: 'ustoz123', role: 'TEACHER', phone: '+998905556677', school_id: 'sch_1' },
+      { id: 'usr_ustoz_11a', name: 'Dilnoza Yusupova (11-A)', username: 'ustoz_11a', pw: 'ustoz123', role: 'TEACHER', phone: '+998906667788', school_id: 'sch_1' },
     ];
 
     for (const u of users) {
       const hash = await pwHash(u.pw);
       await client.query(
-        `INSERT INTO users (id, name, username, password_hash, role, phone)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO users (id, school_id, name, username, password_hash, role, phone)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          ON CONFLICT (username) DO UPDATE 
-         SET name = EXCLUDED.name, password_hash = EXCLUDED.password_hash, role = EXCLUDED.role, phone = EXCLUDED.phone;`,
-        [u.id, u.name, u.username, hash, u.role, u.phone]
+         SET name = EXCLUDED.name, school_id = EXCLUDED.school_id, password_hash = EXCLUDED.password_hash, role = EXCLUDED.role, phone = EXCLUDED.phone;`,
+        [u.id, u.school_id, u.name, u.username, hash, u.role, u.phone]
       );
     }
     console.log(`✓ ${users.length} users seeded.`);
@@ -86,10 +127,10 @@ async function run() {
 
     for (const c of classes) {
       await client.query(
-        `INSERT INTO classes (id, name, grade, shift, room, teacher_id)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO classes (id, school_id, name, grade, shift, room, teacher_id)
+         VALUES ($1, 'sch_1', $2, $3, $4, $5, $6)
          ON CONFLICT (id) DO UPDATE 
-         SET name = EXCLUDED.name, grade = EXCLUDED.grade, shift = EXCLUDED.shift, room = EXCLUDED.room, teacher_id = EXCLUDED.teacher_id;`,
+         SET school_id = 'sch_1', name = EXCLUDED.name, grade = EXCLUDED.grade, shift = EXCLUDED.shift, room = EXCLUDED.room, teacher_id = EXCLUDED.teacher_id;`,
         [c.id, c.name, c.grade, c.shift, c.room, c.teacher_id]
       );
     }
@@ -104,7 +145,6 @@ async function run() {
     const studentsToInsert = [];
 
     for (const c of classes) {
-      // Har bir sinfda 12-15 nafar o'quvchi
       const count = c.name === '5-A' ? 14 : 12;
       for (let i = 0; i < count; i++) {
         const isBoy = i % 2 === 0;
@@ -114,6 +154,7 @@ async function run() {
         const phone = `+99890${String(1000000 + studentIndex * 47).slice(-7)}`;
         studentsToInsert.push({
           id: stId,
+          school_id: 'sch_1',
           class_id: c.id,
           name: `${ln} ${fn}`,
           gender: isBoy ? 'male' : 'female',
@@ -126,24 +167,22 @@ async function run() {
 
     for (const st of studentsToInsert) {
       await client.query(
-        `INSERT INTO students (id, class_id, name, gender, parent_name, parent_phone, status)
-         VALUES ($1, $2, $3, $4, $5, $6, 'active')
+        `INSERT INTO students (id, school_id, class_id, name, gender, parent_name, parent_phone, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'active')
          ON CONFLICT (id) DO UPDATE
-         SET name = EXCLUDED.name, parent_name = EXCLUDED.parent_name, parent_phone = EXCLUDED.parent_phone;`,
-        [st.id, st.class_id, st.name, st.gender, st.parent_name, st.parent_phone]
+         SET school_id = 'sch_1', name = EXCLUDED.name, parent_name = EXCLUDED.parent_name, parent_phone = EXCLUDED.parent_phone;`,
+        [st.id, st.school_id, st.class_id, st.name, st.gender, st.parent_name, st.parent_phone]
       );
     }
     console.log(`✓ ${studentsToInsert.length} students seeded.`);
 
     console.log('--- Seeding Today Attendance ---');
     const today = new Date().toISOString().split('T')[0];
-    
-    // 5-A, 5-B, 9-B ga bugungi davomatni simulyatsiya qilamiz
+
     for (const st of studentsToInsert) {
       let status = 'PRESENT';
       let reason = null;
 
-      // 5-A va 9-B dagi ayrim o'quvchilarga sababli va sababsiz qo'yamiz
       if (st.class_id === 'cls_5a') {
         if (st.id === 'st_cls_5a_3') {
           status = 'ABSENT_EXCUSED';
@@ -162,55 +201,25 @@ async function run() {
           status = 'ABSENT_EXCUSED';
           reason = 'Shahar olimpiadasiga jo\'nab ketgan';
         }
-      } else if (st.class_id === 'cls_11a') {
-        if (st.id === 'st_cls_11a_4') {
-          status = 'ABSENT_UNEXCUSED';
-        }
       }
 
       await client.query(
-        `INSERT INTO attendance (id, date, student_id, class_id, status, reason, marked_by_id)
-         VALUES ($1, $2, $3, $4, $5, $6, 'usr_davomat')
+        `INSERT INTO attendance (id, school_id, date, student_id, class_id, status, reason, marked_by_id)
+         VALUES ($1, 'sch_1', $2, $3, $4, $5, $6, 'usr_davomat')
          ON CONFLICT (student_id, date) DO UPDATE
-         SET status = EXCLUDED.status, reason = EXCLUDED.reason;`,
+         SET school_id = 'sch_1', status = EXCLUDED.status, reason = EXCLUDED.reason;`,
         [`att_${st.id}_${today}`, today, st.id, st.class_id, status, reason]
       );
     }
 
-    // Submission belgisi
     await client.query(
-      `INSERT INTO attendance_submissions (id, date, class_id, submitted_by_id, status, submitted_at)
-       VALUES ($1, $2, $3, $4, 'SUBMITTED', CURRENT_TIMESTAMP)
-       ON CONFLICT (class_id, date) DO NOTHING;`,
+      `INSERT INTO attendance_submissions (id, school_id, date, class_id, submitted_by_id, status, submitted_at)
+       VALUES ($1, 'sch_1', $2, $3, $4, 'SUBMITTED', CURRENT_TIMESTAMP)
+       ON CONFLICT (class_id, date) DO UPDATE SET school_id = 'sch_1';`,
       [`sub_cls_5a_${today}`, today, 'cls_5a', 'usr_davomat']
     );
 
-    console.log('--- Seeding System Settings ---');
-    const settings = [
-      ['school_name', 'Prezident ixtisoslashtirilgan 1-sonli maktab'],
-      ['academic_year', '2026-2027'],
-      ['attendance_start_time', '08:00'],
-      ['attendance_end_time', '09:30'],
-      ['allow_late_editing', 'true'],
-    ];
-
-    for (const [k, v] of settings) {
-      await client.query(
-        `INSERT INTO system_settings (key, value)
-         VALUES ($1, $2)
-         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;`,
-        [k, v]
-      );
-    }
-
     console.log('🎉 BAZA TO‘LIQ TAYYOR BO‘LDI!');
-    console.log(`
-      Super Admin:     admin / admin123
-      Direktor:        direktor / direktor123
-      Zamdirektor:     zamdirektor / zam123
-      Sinf Rahbari:    ustoz / ustoz123 (5-A sinf)
-      Davomatchi:      davomatchi / davomat123
-    `);
   } catch (err) {
     console.error('Error seeding database:', err);
     process.exit(1);
