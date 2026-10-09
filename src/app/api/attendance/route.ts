@@ -98,6 +98,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Noto‘g‘ri maʼlumot formati' }, { status: 400 });
     }
 
+    // Sinfning maktabini aniqlaymiz
+    const clsRes = await query(`SELECT school_id FROM classes WHERE id = $1`, [class_id]);
+    const schoolId = clsRes.rows[0]?.school_id || user.school_id || 'sch_1';
+
     // Ommaviy upsert
     for (const item of records) {
       const studentId = item.student_id;
@@ -109,23 +113,25 @@ export async function POST(req: NextRequest) {
 
       await query(
         `INSERT INTO attendance (
-          id, date, student_id, class_id, status, reason, doctor_note_url,
+          id, school_id, date, student_id, class_id, status, reason, doctor_note_url,
           notes, marked_by_id, updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP)
         ON CONFLICT (student_id, date) DO UPDATE 
         SET 
+          school_id = COALESCE(attendance.school_id, EXCLUDED.school_id),
           status = EXCLUDED.status,
           reason = COALESCE(EXCLUDED.reason, attendance.reason),
           doctor_note_url = COALESCE(EXCLUDED.doctor_note_url, attendance.doctor_note_url),
           notes = COALESCE(EXCLUDED.notes, attendance.notes),
           confirmed_by_id = CASE 
-            WHEN $10 IN ('TEACHER', 'DIRECTOR', 'DEPUTY_DIRECTOR') THEN $9 
+            WHEN $11 IN ('TEACHER', 'DIRECTOR', 'DEPUTY_DIRECTOR') THEN $10 
             ELSE attendance.confirmed_by_id 
           END,
           updated_at = CURRENT_TIMESTAMP`,
         [
           attId,
+          schoolId,
           date,
           studentId,
           class_id,

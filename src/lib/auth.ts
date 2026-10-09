@@ -38,10 +38,12 @@ export async function getCurrentUser(): Promise<User | null> {
 
     try {
       const res = await query(
-        `SELECT u.id, u.name, u.username, u.role, u.phone, u.avatar, u.created_at,
-                c.id as assigned_class_id, c.name as assigned_class_name
+        `SELECT u.id, u.name, u.username, u.role, u.school_id, u.phone, u.avatar, u.created_at,
+                c.id as assigned_class_id, c.name as assigned_class_name,
+                s.name as school_name
          FROM users u
          LEFT JOIN classes c ON c.teacher_id = u.id
+         LEFT JOIN schools s ON s.id = u.school_id
          WHERE u.id = $1`,
         [decoded.id]
       );
@@ -54,6 +56,8 @@ export async function getCurrentUser(): Promise<User | null> {
         name: u.name,
         username: u.username,
         role: u.role as Role,
+        school_id: u.school_id || undefined,
+        school_name: u.school_name || undefined,
         phone: u.phone,
         avatar: u.avatar,
         assigned_class_id: u.assigned_class_id || undefined,

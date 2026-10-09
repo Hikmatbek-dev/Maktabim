@@ -17,14 +17,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Sinf va sana talab qilinadi' }, { status: 400 });
     }
 
+    const clsRes = await query(`SELECT school_id FROM classes WHERE id = $1`, [class_id]);
+    const schoolId = clsRes.rows[0]?.school_id || user.school_id || 'sch_1';
+
     const subId = `sub_${class_id}_${date}`;
 
     await query(
-      `INSERT INTO attendance_submissions (id, date, class_id, submitted_by_id, status, submitted_at)
-       VALUES ($1, $2, $3, $4, 'SUBMITTED', CURRENT_TIMESTAMP)
+      `INSERT INTO attendance_submissions (id, school_id, date, class_id, submitted_by_id, status, submitted_at)
+       VALUES ($1, $2, $3, $4, $5, 'SUBMITTED', CURRENT_TIMESTAMP)
        ON CONFLICT (class_id, date) DO UPDATE 
        SET submitted_by_id = EXCLUDED.submitted_by_id, submitted_at = CURRENT_TIMESTAMP`,
-      [subId, date, class_id, user.id]
+      [subId, schoolId, date, class_id, user.id]
     );
 
     return NextResponse.json({

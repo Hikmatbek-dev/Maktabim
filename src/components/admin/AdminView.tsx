@@ -1,17 +1,22 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { School } from '@/lib/types';
 import { 
-  Users, School, UserPlus, Settings, Shield, Plus, 
-  Trash2, Search, Edit2, CheckCircle2, Lock, Key, Clock, Save, X
+  Users, School as SchoolIcon, UserPlus, Settings, Shield, Plus, 
+  Trash2, Search, Edit2, CheckCircle2, Lock, Key, Clock, Save, X, 
+  MapPin, Phone, Building2, Check, ArrowRight, ExternalLink
 } from 'lucide-react';
 
 interface AdminViewProps {
   selectedDate: string;
+  currentSchoolId: string;
+  onSelectSchool: (schoolId: string) => void;
 }
 
-export function AdminView({ selectedDate }: AdminViewProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'classes' | 'students' | 'users' | 'settings'>('overview');
+export function AdminView({ selectedDate, currentSchoolId, onSelectSchool }: AdminViewProps) {
+  const [activeTab, setActiveTab] = useState<'schools' | 'classes' | 'students' | 'users' | 'overview'>('schools');
+  const [schools, setSchools] = useState<School[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [usersList, setUsersList] = useState<any[]>([]);
@@ -19,46 +24,62 @@ export function AdminView({ selectedDate }: AdminViewProps) {
   const [searchStudent, setSearchStudent] = useState('');
   const [toast, setToast] = useState<string | null>(null);
 
-  // Modallar holati
+  // Modallar
+  const [showAddSchoolModal, setShowAddSchoolModal] = useState(false);
+  const [editingSchool, setEditingSchool] = useState<School | null>(null);
   const [showAddClassModal, setShowAddClassModal] = useState(false);
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
+  const [editingStudent, setEditingStudent] = useState<any | null>(null);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
 
-  // Form State: Yangi Sinf
+  // Form: Yangi Maktab
+  const [newSchoolName, setNewSchoolName] = useState('');
+  const [newSchoolCode, setNewSchoolCode] = useState('');
+  const [newSchoolRegion, setNewSchoolRegion] = useState('Toshkent shahri');
+  const [newSchoolDistrict, setNewSchoolDistrict] = useState('');
+  const [newSchoolAddress, setNewSchoolAddress] = useState('');
+  const [newSchoolPhone, setNewSchoolPhone] = useState('');
+
+  // Form: Yangi Sinf
   const [newClassName, setNewClassName] = useState('');
   const [newClassGrade, setNewClassGrade] = useState('5');
   const [newClassShift, setNewClassShift] = useState('1');
   const [newClassRoom, setNewClassRoom] = useState('');
   const [newClassTeacherId, setNewClassTeacherId] = useState('');
+  const [newClassSchoolId, setNewClassSchoolId] = useState(currentSchoolId);
 
-  // Form State: Yangi O'quvchi
+  // Form: Yangi O'quvchi
   const [newStudentName, setNewStudentName] = useState('');
   const [newStudentClassId, setNewStudentClassId] = useState('');
   const [newStudentGender, setNewStudentGender] = useState<'male' | 'female'>('male');
   const [newStudentParent, setNewStudentParent] = useState('');
   const [newStudentPhone, setNewStudentPhone] = useState('');
 
-  // Form State: Yangi Xodim
+  // Form: Yangi Xodim
   const [newUserName, setNewUserName] = useState('');
   const [newUserUsername, setNewUserUsername] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserRole, setNewUserRole] = useState('TEACHER');
+  const [newUserSchoolId, setNewUserSchoolId] = useState(currentSchoolId);
   const [newUserPhone, setNewUserPhone] = useState('');
 
   // Ma'lumotlarni yuklash
-  const loadData = async () => {
+  const loadAll = async () => {
     setLoading(true);
     try {
-      const [clsRes, stRes, usrRes] = await Promise.all([
-        fetch(`/api/classes?date=${selectedDate}`),
-        fetch(`/api/students?search=${encodeURIComponent(searchStudent)}`),
-        fetch('/api/users'),
+      const [schRes, clsRes, stRes, usrRes] = await Promise.all([
+        fetch(`/api/schools?date=${selectedDate}`),
+        fetch(`/api/classes?date=${selectedDate}&school_id=${currentSchoolId}`),
+        fetch(`/api/students?search=${encodeURIComponent(searchStudent)}&school_id=${currentSchoolId}`),
+        fetch(`/api/users?school_id=${currentSchoolId}`),
       ]);
 
+      const schData = await schRes.json();
       const clsData = await clsRes.json();
       const stData = await stRes.json();
       const usrData = await usrRes.json();
 
+      if (schData.schools) setSchools(schData.schools);
       if (clsData.classes) setClasses(clsData.classes);
       if (stData.students) setStudents(stData.students);
       if (usrData.users) setUsersList(usrData.users);
@@ -70,10 +91,85 @@ export function AdminView({ selectedDate }: AdminViewProps) {
   };
 
   useEffect(() => {
-    loadData();
-  }, [selectedDate, searchStudent]);
+    loadAll();
+  }, [selectedDate, currentSchoolId, searchStudent]);
 
-  // Yangi Sinf qo'shish
+  const showToastMsg = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  // 1. MAKTAB YARATISH
+  const handleCreateSchool = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/schools', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newSchoolName,
+          code: newSchoolCode,
+          region: newSchoolRegion,
+          district: newSchoolDistrict,
+          address: newSchoolAddress,
+          phone: newSchoolPhone,
+        }),
+      });
+      if (res.ok) {
+        setShowAddSchoolModal(false);
+        setNewSchoolName('');
+        setNewSchoolCode('');
+        setNewSchoolDistrict('');
+        setNewSchoolAddress('');
+        setNewSchoolPhone('');
+        showToastMsg('Yangi maktab muvaffaqiyatli qo‘shildi!');
+        loadAll();
+      } else {
+        const d = await res.json();
+        alert(d.error || 'Xatolik');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // 2. MAKTABNI TAHRIRLASH
+  const handleUpdateSchool = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSchool) return;
+    try {
+      const res = await fetch(`/api/schools/${editingSchool.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editingSchool),
+      });
+      if (res.ok) {
+        setEditingSchool(null);
+        showToastMsg('Maktab maʼlumotlari yangilandi!');
+        loadAll();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // 3. MAKTABNI O'CHIRISH
+  const handleDeleteSchool = async (school: School) => {
+    if (!confirm(`Haqiqatan ham "${school.name}" maktabini va unga tegishli barcha sinf, o‘quvchi va davomatlarni o‘chirishni xohlaysizmi?`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/schools/${school.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        showToastMsg(`"${school.name}" o‘chirildi`);
+        loadAll();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // 4. SINF YARATISH
   const handleCreateClass = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -86,24 +182,35 @@ export function AdminView({ selectedDate }: AdminViewProps) {
           shift: newClassShift,
           room: newClassRoom,
           teacher_id: newClassTeacherId || null,
+          school_id: newClassSchoolId || currentSchoolId,
         }),
       });
       if (res.ok) {
         setShowAddClassModal(false);
         setNewClassName('');
-        setToast('Yangi sinf muvaffaqiyatli qo‘shildi');
-        setTimeout(() => setToast(null), 3000);
-        loadData();
-      } else {
-        const d = await res.json();
-        alert(d.error || 'Xatolik');
+        showToastMsg('Yangi sinf qo‘shildi');
+        loadAll();
       }
     } catch (err) {
       console.error(err);
     }
   };
 
-  // Yangi O'quvchi qo'shish
+  // 5. SINFNI O'CHIRISH
+  const handleDeleteClass = async (id: string, name: string) => {
+    if (!confirm(`"${name}" sinfini o‘chirmoqchimisiz?`)) return;
+    try {
+      const res = await fetch(`/api/classes?id=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        showToastMsg('Sinf o‘chirildi');
+        loadAll();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // 6. O'QUVCHI YARATISH
   const handleCreateStudent = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -116,6 +223,7 @@ export function AdminView({ selectedDate }: AdminViewProps) {
           gender: newStudentGender,
           parent_name: newStudentParent,
           parent_phone: newStudentPhone,
+          school_id: currentSchoolId,
         }),
       });
       if (res.ok) {
@@ -123,31 +231,49 @@ export function AdminView({ selectedDate }: AdminViewProps) {
         setNewStudentName('');
         setNewStudentParent('');
         setNewStudentPhone('');
-        setToast('O‘quvchi ro‘yxatga qo‘shildi');
-        setTimeout(() => setToast(null), 3000);
-        loadData();
+        showToastMsg('O‘quvchi ro‘yxatga qo‘shildi');
+        loadAll();
       }
     } catch (err) {
       console.error(err);
     }
   };
 
-  // O'quvchini o'chirish
+  // 7. O'QUVCHINI TAHRIRLASH
+  const handleUpdateStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingStudent) return;
+    try {
+      const res = await fetch('/api/students', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editingStudent),
+      });
+      if (res.ok) {
+        setEditingStudent(null);
+        showToastMsg('O‘quvchi yangilandi');
+        loadAll();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // 8. O'QUVCHINI O'CHIRISH
   const handleDeleteStudent = async (id: string, name: string) => {
     if (!confirm(`${name}ni bazadan o‘chirishni tasdiqlaysizmi?`)) return;
     try {
       const res = await fetch(`/api/students?id=${id}`, { method: 'DELETE' });
       if (res.ok) {
-        setToast('O‘quvchi o‘chirildi');
-        setTimeout(() => setToast(null), 3000);
-        loadData();
+        showToastMsg('O‘quvchi o‘chirildi');
+        loadAll();
       }
     } catch (err) {
       console.error(err);
     }
   };
 
-  // Yangi Xodim qo'shish
+  // 9. XODIM YARATISH
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -159,6 +285,7 @@ export function AdminView({ selectedDate }: AdminViewProps) {
           username: newUserUsername,
           password: newUserPassword,
           role: newUserRole,
+          school_id: newUserSchoolId || currentSchoolId,
           phone: newUserPhone,
         }),
       });
@@ -167,9 +294,8 @@ export function AdminView({ selectedDate }: AdminViewProps) {
         setNewUserName('');
         setNewUserUsername('');
         setNewUserPassword('');
-        setToast('Yangi xodim muvaffaqiyatli yaratildi');
-        setTimeout(() => setToast(null), 3000);
-        loadData();
+        showToastMsg('Yangi xodim yaratildi');
+        loadAll();
       } else {
         const d = await res.json();
         alert(d.error || 'Xatolik');
@@ -179,111 +305,224 @@ export function AdminView({ selectedDate }: AdminViewProps) {
     }
   };
 
+  // 10. XODIMNI O'CHIRISH
+  const handleDeleteUser = async (id: string, name: string) => {
+    if (!confirm(`${name} xodimini o‘chirmoqchimisiz?`)) return;
+    try {
+      const res = await fetch(`/api/users?id=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        showToastMsg('Xodim o‘chirildi');
+        loadAll();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const currentSchool = schools.find((s) => s.id === currentSchoolId) || schools[0];
+
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-24 space-y-6">
       {/* Toast */}
       {toast && (
-        <div className="fixed top-20 right-4 z-50 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-in slide-in-from-top-4">
+        <div className="fixed top-20 right-4 z-50 bg-emerald-600 text-white px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2 animate-in slide-in-from-top-4">
           <CheckCircle2 className="w-5 h-5" />
           <span className="text-sm font-semibold">{toast}</span>
         </div>
       )}
 
-      {/* Sarlavha */}
-      <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Sarlavha & Tablar */}
+      <div className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900">
-              🛡️ Super Admin Boshqaruv Markazi
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2">
+              <span>🛡️ Super Admin</span>
+              <span className="text-xs px-2.5 py-0.5 bg-purple-100 text-purple-800 font-bold rounded-full">
+                Multi-Maktab Tizimi
+              </span>
             </h1>
-            <span className="text-xs px-2.5 py-0.5 bg-purple-100 text-purple-800 font-bold rounded-full">
-              To‘liq huquq
-            </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Maktab tuzilmasi, foydalanuvchilar, sinflar va o‘quvchilar bazasini boshqarish
+            Joriy tanlangan maktab: <strong className="text-slate-800">{currentSchool?.name || '1-sonli maktab'}</strong>
           </p>
         </div>
 
         {/* Tab Menyu */}
-        <div className="flex items-center gap-1 bg-slate-100 p-1.5 rounded-xl border border-slate-200 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-1 bg-slate-100 p-1.5 rounded-2xl border border-slate-200 overflow-x-auto no-scrollbar">
           <button
-            onClick={() => setActiveTab('overview')}
-            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-              activeTab === 'overview' ? 'bg-white text-purple-700 shadow-xs' : 'text-slate-600'
+            onClick={() => setActiveTab('schools')}
+            className={`px-3.5 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
+              activeTab === 'schools' ? 'bg-white text-purple-700 shadow-xs' : 'text-slate-600'
             }`}
           >
-            Umumiy
+            🏫 Maktablar ({schools.length})
           </button>
           <button
             onClick={() => setActiveTab('classes')}
-            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+            className={`px-3.5 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
               activeTab === 'classes' ? 'bg-white text-purple-700 shadow-xs' : 'text-slate-600'
             }`}
           >
-            Sinflar ({classes.length})
+            📚 Sinflar ({classes.length})
           </button>
           <button
             onClick={() => setActiveTab('students')}
-            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+            className={`px-3.5 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
               activeTab === 'students' ? 'bg-white text-purple-700 shadow-xs' : 'text-slate-600'
             }`}
           >
-            O‘quvchilar ({students.length})
+            👨‍🎓 O‘quvchilar ({students.length})
           </button>
           <button
             onClick={() => setActiveTab('users')}
-            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+            className={`px-3.5 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
               activeTab === 'users' ? 'bg-white text-purple-700 shadow-xs' : 'text-slate-600'
             }`}
           >
-            Xodimlar ({usersList.length})
+            👥 Xodimlar ({usersList.length})
           </button>
         </div>
       </div>
 
-      {/* TAB 1: OVERVIEW */}
-      {activeTab === 'overview' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-              <span className="text-xs font-bold text-slate-500 uppercase">Jami Sinflar</span>
-              <div className="text-3xl font-black text-slate-900 mt-2">{classes.length}</div>
-              <span className="text-xs text-blue-600 font-semibold mt-1 block">1-va 2-smena</span>
+      {/* =========================================================================
+          TAB 1: MAKTABLAR BOSHQARUVI (MULTI-TENANT SCHOOLS)
+         ========================================================================= */}
+      {activeTab === 'schools' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Maktablar Ro‘yxati</h2>
+              <p className="text-xs text-slate-500">Tizimda ulangan barcha davlat va xususiy maktablar</p>
             </div>
+            <button
+              onClick={() => setShowAddSchoolModal(true)}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-purple-600/20 transition-all active:scale-95"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Yangi maktab qo‘shish</span>
+            </button>
+          </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-              <span className="text-xs font-bold text-slate-500 uppercase">Jami O‘quvchilar</span>
-              <div className="text-3xl font-black text-slate-900 mt-2">{students.length}</div>
-              <span className="text-xs text-emerald-600 font-semibold mt-1 block">Bazada ro‘yxatda</span>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {schools.map((sch) => {
+              const isSelected = sch.id === currentSchoolId;
+              return (
+                <div
+                  key={sch.id}
+                  className={`bg-white rounded-3xl p-5 border-2 transition-all shadow-xs relative overflow-hidden flex flex-col justify-between ${
+                    isSelected
+                      ? 'border-purple-500 ring-2 ring-purple-100 shadow-md'
+                      : 'border-slate-200/80 hover:border-slate-300'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-700 flex items-center justify-center font-black text-xl">
+                          <Building2 className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-slate-900 text-base leading-snug">
+                            {sch.name}
+                          </h3>
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
+                            {sch.code || 'Kodsiz'}
+                          </span>
+                        </div>
+                      </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-              <span className="text-xs font-bold text-slate-500 uppercase">Tizim Foydalanuvchilari</span>
-              <div className="text-3xl font-black text-slate-900 mt-2">{usersList.length}</div>
-              <span className="text-xs text-purple-600 font-semibold mt-1 block">O‘qituvchi & Admin</span>
-            </div>
+                      {isSelected && (
+                        <span className="text-[11px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
+                          Faol
+                        </span>
+                      )}
+                    </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-              <span className="text-xs font-bold text-slate-500 uppercase">Baza Holati</span>
-              <div className="text-xl font-black text-emerald-600 mt-2 flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                PostgreSQL Faol
-              </div>
-              <span className="text-xs text-slate-400 mt-1 block">Neon / Supabase tayyor</span>
-            </div>
+                    <div className="space-y-1.5 text-xs text-slate-600 my-3">
+                      <div className="flex items-center gap-1.5 text-slate-500">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>{sch.region || 'Viloyat yo‘q'}, {sch.district || ''}</span>
+                      </div>
+                      {sch.phone && (
+                        <div className="flex items-center gap-1.5 text-slate-500">
+                          <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span>{sch.phone}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Maktab KPI */}
+                    <div className="grid grid-cols-3 gap-2 bg-slate-50 p-2.5 rounded-2xl border border-slate-100 text-center my-3 text-xs">
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-bold block">SINFLAR</span>
+                        <span className="font-black text-slate-800 text-sm">{sch.class_count || 0}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-bold block">O‘QUVCHILAR</span>
+                        <span className="font-black text-slate-800 text-sm">{sch.student_count || 0}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-bold block">DAVOMAT</span>
+                        <span className="font-black text-emerald-600 text-sm">{sch.attendance_rate || 0}%</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Amallar */}
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <button
+                      onClick={() => onSelectSchool(sch.id)}
+                      className={`flex-1 py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1 transition-all ${
+                        isSelected
+                          ? 'bg-purple-100 text-purple-800'
+                          : 'bg-purple-600 hover:bg-purple-700 text-white shadow-xs'
+                      }`}
+                    >
+                      <span>{isSelected ? '✓ Tanlangan' : 'Boshqarishga o‘tish'}</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+
+                    <button
+                      onClick={() => setEditingSchool(sch)}
+                      className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 transition-colors"
+                      title="Tahrirlash"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+
+                    <button
+                      onClick={() => handleDeleteSchool(sch)}
+                      className="p-2 rounded-xl text-red-500 hover:bg-red-50 transition-colors"
+                      title="O‘chirish"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
 
-      {/* TAB 2: SINFLAR BOSHQARUVI */}
+      {/* =========================================================================
+          TAB 2: SINFLAR BOSHQARUVI
+         ========================================================================= */}
       {activeTab === 'classes' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-slate-800">Mavjud Sinflar Ro‘yxati</h2>
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">
+                Sinflar ({currentSchool?.name})
+              </h2>
+              <p className="text-xs text-slate-500">Mavjud sinflar va sinf rahbarlari</p>
+            </div>
             <button
-              onClick={() => setShowAddClassModal(true)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md shadow-purple-600/20"
+              onClick={() => {
+                setNewClassSchoolId(currentSchoolId);
+                setShowAddClassModal(true);
+              }}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md shadow-purple-600/20"
             >
               <Plus className="w-4 h-4" />
               <span>Yangi sinf qo‘shish</span>
@@ -303,9 +542,18 @@ export function AdminView({ selectedDate }: AdminViewProps) {
                       <div className="text-xs text-slate-400">{cls.room || 'Xona yo‘q'}</div>
                     </div>
                   </div>
-                  <span className="text-xs font-bold px-2 py-1 bg-slate-100 rounded-lg text-slate-700">
-                    {cls.total_students} o‘quvchi
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold px-2 py-1 bg-slate-100 rounded-lg text-slate-700">
+                      {cls.total_students} o‘quvchi
+                    </span>
+                    <button
+                      onClick={() => handleDeleteClass(cls.id, cls.name)}
+                      className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Sinfni o‘chirish"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
                 <div className="text-xs text-slate-600 pt-2 border-t border-slate-100">
                   <span className="text-slate-400">Sinf rahbari:</span>{' '}
@@ -317,11 +565,12 @@ export function AdminView({ selectedDate }: AdminViewProps) {
         </div>
       )}
 
-      {/* TAB 3: O'QUVCHILAR BAZASI */}
+      {/* =========================================================================
+          TAB 3: O'QUVCHILAR BAZASI
+         ========================================================================= */}
       {activeTab === 'students' && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            {/* Qidiruv */}
             <div className="relative flex-1 max-w-md">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
               <input
@@ -342,7 +591,7 @@ export function AdminView({ selectedDate }: AdminViewProps) {
             </button>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs sm:text-sm">
                 <thead className="bg-slate-50 text-slate-600 font-bold uppercase text-[11px] tracking-wider border-b border-slate-200">
@@ -366,13 +615,22 @@ export function AdminView({ selectedDate }: AdminViewProps) {
                       <td className="py-3 px-4 text-slate-700">{st.parent_name || '-'}</td>
                       <td className="py-3 px-4 text-slate-500">{st.parent_phone || '-'}</td>
                       <td className="py-3 px-4 text-right">
-                        <button
-                          onClick={() => handleDeleteStudent(st.id, st.name)}
-                          className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
-                          title="O‘chirish"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => setEditingStudent(st)}
+                            className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
+                            title="Tahrirlash"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteStudent(st.id, st.name)}
+                            className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+                            title="O‘chirish"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -383,14 +641,19 @@ export function AdminView({ selectedDate }: AdminViewProps) {
         </div>
       )}
 
-      {/* TAB 4: FOYDALANUVCHILAR VA ROLLARI */}
+      {/* =========================================================================
+          TAB 4: XODIMLAR VA ROLLARI
+         ========================================================================= */}
       {activeTab === 'users' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-slate-800">Xodimlar va Huquqlar</h2>
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Xodimlar Ro‘yxati</h2>
+              <p className="text-xs text-slate-500">O‘qituvchilar, davomatchilar va maktab rahbarlari</p>
+            </div>
             <button
               onClick={() => setShowAddUserModal(true)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md shadow-purple-600/20"
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md shadow-purple-600/20"
             >
               <UserPlus className="w-4 h-4" />
               <span>Yangi xodim qo‘shish</span>
@@ -405,12 +668,26 @@ export function AdminView({ selectedDate }: AdminViewProps) {
                     <h3 className="font-bold text-slate-900 text-sm">{u.name}</h3>
                     <span className="text-xs text-slate-500 font-mono">@{u.username}</span>
                   </div>
-                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-800">
-                    {u.role}
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-800">
+                      {u.role}
+                    </span>
+                    <button
+                      onClick={() => handleDeleteUser(u.id, u.name)}
+                      className="p-1 text-red-500 hover:bg-red-50 rounded-md"
+                      title="Xodimni o‘chirish"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
                 <div className="text-xs text-slate-600 pt-2 border-t border-slate-100">
-                  Tel: {u.phone || 'Kiritilmagan'}
+                  <div>Tel: {u.phone || 'Kiritilmagan'}</div>
+                  {u.school_name && (
+                    <div className="text-purple-700 font-semibold mt-0.5">
+                      🏫 {u.school_name}
+                    </div>
+                  )}
                   {u.assigned_class_name && (
                     <div className="text-emerald-700 font-semibold mt-0.5">
                       Sinfi: {u.assigned_class_name}
@@ -423,7 +700,172 @@ export function AdminView({ selectedDate }: AdminViewProps) {
         </div>
       )}
 
-      {/* MODAL: YANGI SINF QO'SHISH */}
+      {/* =========================================================================
+          MODALLAR
+         ========================================================================= */}
+
+      {/* MODAL 1: YANGI MAKTAB QO'SHISH */}
+      {showAddSchoolModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl animate-in fade-in">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-slate-900">Yangi Maktab Qo‘shish</h3>
+              <button onClick={() => setShowAddSchoolModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateSchool} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Maktab nomi</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Masalan: 45-sonli ixtisoslashtirilgan maktab"
+                  value={newSchoolName}
+                  onChange={(e) => setNewSchoolName(e.target.value)}
+                  className="w-full text-xs sm:text-sm p-3 rounded-xl border border-slate-200 focus:outline-none focus:border-purple-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Maktab kodi</label>
+                  <input
+                    type="text"
+                    placeholder="MAK-045"
+                    value={newSchoolCode}
+                    onChange={(e) => setNewSchoolCode(e.target.value)}
+                    className="w-full text-xs sm:text-sm p-3 rounded-xl border border-slate-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Viloyat / Shahar</label>
+                  <input
+                    type="text"
+                    placeholder="Toshkent shahri"
+                    value={newSchoolRegion}
+                    onChange={(e) => setNewSchoolRegion(e.target.value)}
+                    className="w-full text-xs sm:text-sm p-3 rounded-xl border border-slate-200"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Tuman</label>
+                  <input
+                    type="text"
+                    placeholder="Chilonzor tumani"
+                    value={newSchoolDistrict}
+                    onChange={(e) => setNewSchoolDistrict(e.target.value)}
+                    className="w-full text-xs sm:text-sm p-3 rounded-xl border border-slate-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Telefon</label>
+                  <input
+                    type="text"
+                    placeholder="+998712003344"
+                    value={newSchoolPhone}
+                    onChange={(e) => setNewSchoolPhone(e.target.value)}
+                    className="w-full text-xs sm:text-sm p-3 rounded-xl border border-slate-200"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Manzil</label>
+                <input
+                  type="text"
+                  placeholder="Navoiy ko‘chasi, 15-uy"
+                  value={newSchoolAddress}
+                  onChange={(e) => setNewSchoolAddress(e.target.value)}
+                  className="w-full text-xs sm:text-sm p-3 rounded-xl border border-slate-200"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAddSchoolModal(false)}
+                  className="w-1/2 py-2.5 rounded-xl border border-slate-200 text-xs font-bold"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  className="w-1/2 py-2.5 rounded-xl bg-purple-600 text-white text-xs font-bold shadow-md shadow-purple-600/20"
+                >
+                  Maktabni yaratish
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: MAKTABNI TAHRIRLASH */}
+      {editingSchool && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-slate-900">Maktabni Tahrirlash</h3>
+              <button onClick={() => setEditingSchool(null)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleUpdateSchool} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Maktab nomi</label>
+                <input
+                  type="text"
+                  required
+                  value={editingSchool.name}
+                  onChange={(e) => setEditingSchool({ ...editingSchool, name: e.target.value })}
+                  className="w-full text-xs sm:text-sm p-3 rounded-xl border border-slate-200"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Viloyat</label>
+                  <input
+                    type="text"
+                    value={editingSchool.region || ''}
+                    onChange={(e) => setEditingSchool({ ...editingSchool, region: e.target.value })}
+                    className="w-full text-xs sm:text-sm p-3 rounded-xl border border-slate-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Tuman</label>
+                  <input
+                    type="text"
+                    value={editingSchool.district || ''}
+                    onChange={(e) => setEditingSchool({ ...editingSchool, district: e.target.value })}
+                    className="w-full text-xs sm:text-sm p-3 rounded-xl border border-slate-200"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingSchool(null)}
+                  className="w-1/2 py-2.5 rounded-xl border border-slate-200 text-xs font-bold"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  className="w-1/2 py-2.5 rounded-xl bg-purple-600 text-white text-xs font-bold"
+                >
+                  Saqlash
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: YANGI SINF QO'SHISH */}
       {showAddClassModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl">
@@ -434,6 +876,18 @@ export function AdminView({ selectedDate }: AdminViewProps) {
               </button>
             </div>
             <form onSubmit={handleCreateClass} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Maktab</label>
+                <select
+                  value={newClassSchoolId}
+                  onChange={(e) => setNewClassSchoolId(e.target.value)}
+                  className="w-full text-xs sm:text-sm p-3 rounded-xl border border-slate-200 font-bold"
+                >
+                  {schools.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Sinf nomi (Masalan: 7-B)</label>
                 <input
@@ -447,7 +901,7 @@ export function AdminView({ selectedDate }: AdminViewProps) {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Bosqich (Sinf raqami)</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Bosqich</label>
                   <select
                     value={newClassGrade}
                     onChange={(e) => setNewClassGrade(e.target.value)}
@@ -490,7 +944,7 @@ export function AdminView({ selectedDate }: AdminViewProps) {
                 </button>
                 <button
                   type="submit"
-                  className="w-1/2 py-2.5 rounded-xl bg-purple-600 text-white text-xs font-bold shadow-md shadow-purple-600/20"
+                  className="w-1/2 py-2.5 rounded-xl bg-purple-600 text-white text-xs font-bold"
                 >
                   Qo‘shish
                 </button>
@@ -500,7 +954,7 @@ export function AdminView({ selectedDate }: AdminViewProps) {
         </div>
       )}
 
-      {/* MODAL: YANGI O'QUVCHI QO'SHISH */}
+      {/* MODAL 4: YANGI O'QUVCHI */}
       {showAddStudentModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl">
@@ -558,7 +1012,7 @@ export function AdminView({ selectedDate }: AdminViewProps) {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Telefon raqam</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Telefon</label>
                 <input
                   type="text"
                   placeholder="+998901234567"
@@ -577,7 +1031,7 @@ export function AdminView({ selectedDate }: AdminViewProps) {
                 </button>
                 <button
                   type="submit"
-                  className="w-1/2 py-2.5 rounded-xl bg-purple-600 text-white text-xs font-bold shadow-md shadow-purple-600/20"
+                  className="w-1/2 py-2.5 rounded-xl bg-purple-600 text-white text-xs font-bold"
                 >
                   Saqlash
                 </button>
@@ -587,7 +1041,68 @@ export function AdminView({ selectedDate }: AdminViewProps) {
         </div>
       )}
 
-      {/* MODAL: YANGI XODIM QO'SHISH */}
+      {/* MODAL 5: O'QUVCHINI TAHRIRLASH */}
+      {editingStudent && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-slate-900">O‘quvchini tahrirlash</h3>
+              <button onClick={() => setEditingStudent(null)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleUpdateStudent} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">F.I.Sh</label>
+                <input
+                  type="text"
+                  required
+                  value={editingStudent.name}
+                  onChange={(e) => setEditingStudent({ ...editingStudent, name: e.target.value })}
+                  className="w-full text-xs sm:text-sm p-3 rounded-xl border border-slate-200"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Ota-onasi</label>
+                  <input
+                    type="text"
+                    value={editingStudent.parent_name || ''}
+                    onChange={(e) => setEditingStudent({ ...editingStudent, parent_name: e.target.value })}
+                    className="w-full text-xs sm:text-sm p-3 rounded-xl border border-slate-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Telefon</label>
+                  <input
+                    type="text"
+                    value={editingStudent.parent_phone || ''}
+                    onChange={(e) => setEditingStudent({ ...editingStudent, parent_phone: e.target.value })}
+                    className="w-full text-xs sm:text-sm p-3 rounded-xl border border-slate-200"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingStudent(null)}
+                  className="w-1/2 py-2.5 rounded-xl border border-slate-200 text-xs font-bold"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  className="w-1/2 py-2.5 rounded-xl bg-purple-600 text-white text-xs font-bold"
+                >
+                  Saqlash
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 6: YANGI XODIM */}
       {showAddUserModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl">
@@ -598,6 +1113,18 @@ export function AdminView({ selectedDate }: AdminViewProps) {
               </button>
             </div>
             <form onSubmit={handleCreateUser} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Qaysi maktab xodimi?</label>
+                <select
+                  value={newUserSchoolId}
+                  onChange={(e) => setNewUserSchoolId(e.target.value)}
+                  className="w-full text-xs sm:text-sm p-3 rounded-xl border border-slate-200 font-bold"
+                >
+                  {schools.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Xodim F.I.Sh</label>
                 <input
@@ -667,7 +1194,7 @@ export function AdminView({ selectedDate }: AdminViewProps) {
                 </button>
                 <button
                   type="submit"
-                  className="w-1/2 py-2.5 rounded-xl bg-purple-600 text-white text-xs font-bold shadow-md shadow-purple-600/20"
+                  className="w-1/2 py-2.5 rounded-xl bg-purple-600 text-white text-xs font-bold"
                 >
                   Yaratish
                 </button>

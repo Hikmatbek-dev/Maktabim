@@ -13,10 +13,16 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
+    const schoolId = searchParams.get('school_id') || user.school_id || 'sch_1';
+
+    // Maktab nomi
+    const schoolRes = await query(`SELECT name FROM schools WHERE id = $1`, [schoolId]);
+    const schoolName = schoolRes.rows[0]?.name || 'Maktabim';
 
     // 1. Umumiy o'quvchilar soni
     const totalStudentsRes = await query(
-      `SELECT COUNT(*)::int as count FROM students WHERE status = 'active'`
+      `SELECT COUNT(*)::int as count FROM students WHERE status = 'active' AND school_id = $1`,
+      [schoolId]
     );
     const totalStudents = totalStudentsRes.rows[0]?.count || 0;
 
@@ -26,9 +32,9 @@ export async function GET(req: NextRequest) {
         status, 
         COUNT(*)::int as count 
        FROM attendance 
-       WHERE date = $1 
+       WHERE date = $1 AND school_id = $2
        GROUP BY status`,
-      [date]
+      [date, schoolId]
     );
 
     let present = 0;
@@ -52,9 +58,10 @@ export async function GET(req: NextRequest) {
        FROM classes c
        JOIN students s ON s.class_id = c.id AND s.status = 'active'
        LEFT JOIN attendance a ON a.student_id = s.id AND a.date = $1
+       WHERE c.school_id = $2
        GROUP BY c.shift
        ORDER BY c.shift`,
-      [date]
+      [date, schoolId]
     );
 
     let shift1 = { total: 0, present: 0, rate: 0 };
@@ -70,12 +77,15 @@ export async function GET(req: NextRequest) {
     }
 
     // 4. Sinflar va ularning topshirish holati
-    const classesCountRes = await query(`SELECT COUNT(*)::int as count FROM classes`);
+    const classesCountRes = await query(
+      `SELECT COUNT(*)::int as count FROM classes WHERE school_id = $1`,
+      [schoolId]
+    );
     const totalClasses = classesCountRes.rows[0]?.count || 0;
 
     const submittedRes = await query(
-      `SELECT COUNT(*)::int as count FROM attendance_submissions WHERE date = $1`,
-      [date]
+      `SELECT COUNT(*)::int as count FROM attendance_submissions WHERE date = $1 AND school_id = $2`,
+      [date, schoolId]
     );
     const submittedClassesCount = submittedRes.rows[0]?.count || 0;
 
@@ -87,10 +97,11 @@ export async function GET(req: NextRequest) {
        FROM attendance a
        JOIN students s ON s.id = a.student_id
        JOIN classes c ON c.id = s.class_id
-       WHERE a.status = 'ABSENT_UNEXCUSED'
+       WHERE a.status = 'ABSENT_UNEXCUSED' AND a.school_id = $1
        GROUP BY s.id, s.name, s.parent_phone, c.name
        ORDER BY unexcused_days DESC
-       LIMIT 5`
+       LIMIT 5`,
+      [schoolId]
     );
 
     const checkedTotal = present + unexcused + excused + late;
@@ -98,6 +109,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       date,
+      school_id: schoolId,
+      school_name: schoolName,
       total_students: totalStudents,
       checked_students: checkedTotal,
       total_present: present,

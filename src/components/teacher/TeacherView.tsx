@@ -10,9 +10,10 @@ import {
 interface TeacherViewProps {
   user: User;
   selectedDate: string;
+  schoolId?: string;
 }
 
-export function TeacherView({ user, selectedDate }: TeacherViewProps) {
+export function TeacherView({ user, selectedDate, schoolId }: TeacherViewProps) {
   const [classes, setClasses] = useState<any[]>([]);
   const [activeClassId, setActiveClassId] = useState<string>(user.assigned_class_id || 'cls_5a');
   const [students, setStudents] = useState<any[]>([]);
@@ -26,11 +27,12 @@ export function TeacherView({ user, selectedDate }: TeacherViewProps) {
   const [customNote, setCustomNote] = useState<string>('');
   const [hasDoctorNote, setHasDoctorNote] = useState<boolean>(true);
 
-  // Sinflarni yuklash (agar o'qituvchiga bir nechta sinf bo'lsa yoki tanlash uchun)
+  // Sinflarni yuklash
   useEffect(() => {
     const fetchClasses = async () => {
       try {
-        const res = await fetch(`/api/classes?date=${selectedDate}`);
+        const schoolParam = schoolId ? `&school_id=${schoolId}` : '';
+        const res = await fetch(`/api/classes?date=${selectedDate}${schoolParam}`);
         const data = await res.json();
         if (data.classes) {
           setClasses(data.classes);
@@ -43,7 +45,7 @@ export function TeacherView({ user, selectedDate }: TeacherViewProps) {
       }
     };
     fetchClasses();
-  }, [selectedDate]);
+  }, [selectedDate, schoolId]);
 
   // Sinf davomatini yuklash
   const loadClassAttendance = async () => {

@@ -9,9 +9,10 @@ import {
 
 interface InspectorViewProps {
   selectedDate: string;
+  schoolId?: string;
 }
 
-export function InspectorView({ selectedDate }: InspectorViewProps) {
+export function InspectorView({ selectedDate, schoolId }: InspectorViewProps) {
   const [classes, setClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedShift, setSelectedShift] = useState<1 | 2>(1);
@@ -21,12 +22,14 @@ export function InspectorView({ selectedDate }: InspectorViewProps) {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [searchStudent, setSearchStudent] = useState('');
 
   // Sinflarni yuklash
   const loadClasses = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/classes?date=${selectedDate}&shift=${selectedShift}`);
+      const schoolParam = schoolId ? `&school_id=${schoolId}` : '';
+      const res = await fetch(`/api/classes?date=${selectedDate}&shift=${selectedShift}${schoolParam}`);
       const data = await res.json();
       if (data.classes) {
         setClasses(data.classes);
@@ -43,7 +46,7 @@ export function InspectorView({ selectedDate }: InspectorViewProps) {
     if (activeClass) {
       loadClassAttendance(activeClass.id);
     }
-  }, [selectedDate, selectedShift]);
+  }, [selectedDate, selectedShift, schoolId]);
 
   // Tanlangan sinf o'quvchilari va davomatini yuklash
   const loadClassAttendance = async (classId: string) => {
@@ -63,6 +66,7 @@ export function InspectorView({ selectedDate }: InspectorViewProps) {
           };
           stList.push({
             id: r.student_id,
+            school_id: schoolId || 'sch_1',
             class_id: classId,
             name: r.student_name,
             gender: r.gender,

@@ -1,8 +1,20 @@
--- MAKTABIM PLATFORMASI MA'LUMOTLAR BAZASI SXEMASI
+-- MAKTABIM PLATFORMASI - KO'P MAKTABLI (MULTI-TENANT) BAZA SXEMASI
 -- PostgreSQL / Neon / Supabase moslashuvchan
+
+CREATE TABLE IF NOT EXISTS schools (
+    id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    code VARCHAR(50) UNIQUE,
+    region VARCHAR(100),      -- Viloyat / Shahar
+    district VARCHAR(100),    -- Tuman
+    address VARCHAR(255),
+    phone VARCHAR(50),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
 CREATE TABLE IF NOT EXISTS users (
     id VARCHAR(50) PRIMARY KEY,
+    school_id VARCHAR(50) REFERENCES schools(id) ON DELETE SET NULL,
     name VARCHAR(255) NOT NULL,
     username VARCHAR(100) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
@@ -14,6 +26,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS classes (
     id VARCHAR(50) PRIMARY KEY,
+    school_id VARCHAR(50) REFERENCES schools(id) ON DELETE CASCADE,
     name VARCHAR(50) NOT NULL, -- Masalan: 5-A, 9-B
     grade INTEGER NOT NULL,    -- 1 - 11
     shift SMALLINT NOT NULL DEFAULT 1, -- 1 yoki 2
@@ -24,6 +37,7 @@ CREATE TABLE IF NOT EXISTS classes (
 
 CREATE TABLE IF NOT EXISTS students (
     id VARCHAR(50) PRIMARY KEY,
+    school_id VARCHAR(50) REFERENCES schools(id) ON DELETE CASCADE,
     class_id VARCHAR(50) NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     gender VARCHAR(10) NOT NULL DEFAULT 'male',
@@ -36,6 +50,7 @@ CREATE TABLE IF NOT EXISTS students (
 
 CREATE TABLE IF NOT EXISTS attendance (
     id VARCHAR(50) PRIMARY KEY,
+    school_id VARCHAR(50) REFERENCES schools(id) ON DELETE CASCADE,
     date DATE NOT NULL,
     student_id VARCHAR(50) NOT NULL REFERENCES students(id) ON DELETE CASCADE,
     class_id VARCHAR(50) NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
@@ -52,6 +67,7 @@ CREATE TABLE IF NOT EXISTS attendance (
 
 CREATE TABLE IF NOT EXISTS attendance_submissions (
     id VARCHAR(50) PRIMARY KEY,
+    school_id VARCHAR(50) REFERENCES schools(id) ON DELETE CASCADE,
     date DATE NOT NULL,
     class_id VARCHAR(50) NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
     submitted_by_id VARCHAR(50) REFERENCES users(id) ON DELETE SET NULL,
@@ -63,6 +79,7 @@ CREATE TABLE IF NOT EXISTS attendance_submissions (
 
 CREATE TABLE IF NOT EXISTS audit_logs (
     id VARCHAR(50) PRIMARY KEY,
+    school_id VARCHAR(50) REFERENCES schools(id) ON DELETE CASCADE,
     user_id VARCHAR(50) REFERENCES users(id) ON DELETE SET NULL,
     action VARCHAR(100) NOT NULL,
     details TEXT,
@@ -75,7 +92,11 @@ CREATE TABLE IF NOT EXISTS system_settings (
     value TEXT NOT NULL
 );
 
--- Tezkor qidiruv va hisobotlar uchun indekslar
+-- Indekslar
+CREATE INDEX IF NOT EXISTS idx_schools_region ON schools(region);
+CREATE INDEX IF NOT EXISTS idx_classes_school ON classes(school_id);
+CREATE INDEX IF NOT EXISTS idx_students_school ON students(school_id);
+CREATE INDEX IF NOT EXISTS idx_attendance_school_date ON attendance(school_id, date);
 CREATE INDEX IF NOT EXISTS idx_attendance_date ON attendance(date);
 CREATE INDEX IF NOT EXISTS idx_attendance_class_date ON attendance(class_id, date);
 CREATE INDEX IF NOT EXISTS idx_students_class ON students(class_id);

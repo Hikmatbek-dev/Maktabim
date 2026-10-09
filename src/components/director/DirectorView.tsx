@@ -9,9 +9,10 @@ import {
 
 interface DirectorViewProps {
   selectedDate: string;
+  schoolId?: string;
 }
 
-export function DirectorView({ selectedDate }: DirectorViewProps) {
+export function DirectorView({ selectedDate, schoolId }: DirectorViewProps) {
   const [stats, setStats] = useState<any | null>(null);
   const [classes, setClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,9 +23,10 @@ export function DirectorView({ selectedDate }: DirectorViewProps) {
     const fetchData = async () => {
       try {
         setLoading(true);
+        const schoolParam = schoolId ? `&school_id=${schoolId}` : '';
         const [statsRes, classesRes] = await Promise.all([
-          fetch(`/api/stats?date=${selectedDate}`),
-          fetch(`/api/classes?date=${selectedDate}`),
+          fetch(`/api/stats?date=${selectedDate}${schoolParam}`),
+          fetch(`/api/classes?date=${selectedDate}${schoolParam}`),
         ]);
 
         const statsData = await statsRes.json();
@@ -40,13 +42,14 @@ export function DirectorView({ selectedDate }: DirectorViewProps) {
     };
 
     fetchData();
-  }, [selectedDate]);
+  }, [selectedDate, schoolId]);
 
   // Excel yuklab olish
   const handleExportExcel = async () => {
     setDownloading(true);
     try {
-      const response = await fetch(`/api/reports/export?date=${selectedDate}`);
+      const schoolParam = schoolId ? `&school_id=${schoolId}` : '';
+      const response = await fetch(`/api/reports/export?date=${selectedDate}${schoolParam}`);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
