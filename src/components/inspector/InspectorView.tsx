@@ -2,23 +2,30 @@
 
 import React, { useState, useEffect } from 'react';
 import { SchoolClass, Student, AttendanceStatus } from '@/lib/types';
+import { StudentMonthlyModal } from '../StudentMonthlyModal';
 
 interface InspectorViewProps {
   selectedDate: string;
   schoolId?: string;
+  activeTab?: 'inspector_monitor' | 'inspector_classes';
 }
 
-export function InspectorView({ selectedDate, schoolId }: InspectorViewProps) {
+export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_classes' }: InspectorViewProps) {
   const [classes, setClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedShift, setSelectedShift] = useState<1 | 2>(1);
-  const [activeClass, setActiveClass] = useState<SchoolClass | null>(null);
+  const [activeClassId, setActiveClassId] = useState<string>('');
   const [students, setStudents] = useState<Student[]>([]);
   const [attendanceMap, setAttendanceMap] = useState<Record<string, { status: AttendanceStatus; reason?: string }>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
   const [searchStudent, setSearchStudent] = useState('');
+  const [filterMode, setFilterMode] = useState<'ALL' | 'PRESENT' | 'ABSENT' | 'LATE'>('ALL');
+  const [studentsLoading, setStudentsLoading] = useState(false);
+
+  // O'quvchi ustiga bosilganda oylik taqvim modali
+  const [selectedStudentForMonthly, setSelectedStudentForMonthly] = useState<any | null>(null);
 
   // Sinflarni yuklash
   const loadClasses = async () => {
@@ -27,8 +34,18 @@ export function InspectorView({ selectedDate, schoolId }: InspectorViewProps) {
       const schoolParam = schoolId ? `&school_id=${schoolId}` : '';
       const res = await fetch(`/api/classes?date=${selectedDate}&shift=${selectedShift}${schoolParam}`);
       const data = await res.json();
-      if (data.classes) {
+      if (data.classes && data.classes.length > 0) {
         setClasses(data.classes);
+        setActiveClassId((prev) => {
+          if (prev && data.classes.some((c: any) => c.id === prev)) {
+            return prev;
+          }
+          return data.classes[0].id;
+        });
+      } else {
+        setClasses([]);
+        setActiveClassId('');
+        setStudents([]);
       }
     } catch (err) {
       console.error(err);
@@ -39,15 +56,17 @@ export function InspectorView({ selectedDate, schoolId }: InspectorViewProps) {
 
   useEffect(() => {
     loadClasses();
-    if (activeClass) {
-      loadClassAttendance(activeClass.id);
-    }
   }, [selectedDate, selectedShift, schoolId]);
 
-  // Tanlangan sinf o'quvchilari va davomatini yuklash
+  // Tanlangan sinf davomatini yuklash
   const loadClassAttendance = async (classId: string) => {
+    if (!classId) {
+      setStudents([]);
+      setAttendanceMap({});
+      return;
+    }
     try {
-      setLoading(true);
+      setStudentsLoading(true);
       const res = await fetch(`/api/attendance?class_id=${classId}&date=${selectedDate}`);
       const data = await res.json();
 
@@ -75,36 +94,26 @@ export function InspectorView({ selectedDate, schoolId }: InspectorViewProps) {
         setStudents(stList);
         setAttendanceMap(map);
         setIsSubmitted(!!data.submission);
+      } else {
+        setStudents([]);
+        setAttendanceMap({});
       }
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      setStudentsLoading(false);
     }
   };
 
-  const handleSelectClass = (cls: SchoolClass) => {
-    setActiveClass(cls);
-    loadClassAttendance(cls.id);
-  };
+  useEffect(() => {
+    if (activeClassId) {
+      loadClassAttendance(activeClassId);
+    }
+  }, [activeClassId, selectedDate]);
 
-  // Bir tegishda almashtirish (Bor <-> Yo'q)
-  const handleToggleStatus = (studentId: string) => {
-    setAttendanceMap((prev) => {
-      const current = prev[studentId]?.status || 'PRESENT';
-      const nextStatus: AttendanceStatus = current === 'PRESENT' ? 'ABSENT_UNEXCUSED' : 'PRESENT';
-      return {
-        ...prev,
-        [studentId]: {
-          ...prev[studentId],
-          status: nextStatus,
-        },
-      };
-    });
-  };
-
-  // Holatni to'g'ridan-to'g'ri o'rnatish
-  const handleSetStatus = (studentId: string, status: AttendanceStatus) => {
+  // To'g'ridan-to'g'ri holatni o'rnatish
+  const handleSetStatus = (e: React.MouseEvent, studentId: string, status: AttendanceStatus) => {
+    e.stopPropagation();
     setAttendanceMap((prev) => ({
       ...prev,
       [studentId]: {
@@ -114,7 +123,7 @@ export function InspectorView({ selectedDate, schoolId }: InspectorViewProps) {
     }));
   };
 
-  // Barchasini "Bor" deb belgilash
+  // Barchasini bir bosishda "Bor" deb belgilash
   const handleMarkAllPresent = () => {
     const updated: Record<string, { status: AttendanceStatus; reason?: string }> = {};
     students.forEach((s) => {
@@ -123,9 +132,9 @@ export function InspectorView({ selectedDate, schoolId }: InspectorViewProps) {
     setAttendanceMap(updated);
   };
 
-  // Davomatni saqlash va topshirish
+  // Davomatni topshirish
   const handleSaveAndSubmit = async () => {
-    if (!activeClass) return;
+    if (!activeClassId) return;
     setSaving(true);
     try {
       const records = Object.entries(attendanceMap).map(([studentId, data]) => ({
@@ -139,7 +148,7 @@ export function InspectorView({ selectedDate, schoolId }: InspectorViewProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          class_id: activeClass.id,
+          class_id: activeClassId,
           date: selectedDate,
           records,
         }),
@@ -150,14 +159,15 @@ export function InspectorView({ selectedDate, schoolId }: InspectorViewProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          class_id: activeClass.id,
+          class_id: activeClassId,
           date: selectedDate,
         }),
       });
 
       setIsSubmitted(true);
-      setSuccessToast(`${activeClass.name} sinfi davomati muvaffaqiyatli topshirildi!`);
-      setTimeout(() => setSuccessToast(null), 3500);
+      const activeCls = classes.find((c) => c.id === activeClassId);
+      setSuccessToast(`${activeCls?.name || 'Sinf'} davomati topshirildi!`);
+      setTimeout(() => setSuccessToast(null), 3000);
       loadClasses();
     } catch (err) {
       console.error(err);
@@ -170,330 +180,465 @@ export function InspectorView({ selectedDate, schoolId }: InspectorViewProps) {
   // Hisob-kitoblar
   const total = students.length;
   const present = Object.values(attendanceMap).filter((s) => s.status === 'PRESENT').length;
-  const absent = Object.values(attendanceMap).filter((s) => s.status === 'ABSENT_UNEXCUSED').length;
+  const absent = Object.values(attendanceMap).filter((s) => s.status === 'ABSENT_UNEXCUSED' || s.status === 'ABSENT_EXCUSED').length;
   const late = Object.values(attendanceMap).filter((s) => s.status === 'LATE').length;
 
-  const filteredStudents = students.filter((s) =>
-    s.name.toLowerCase().includes(searchStudent.toLowerCase())
-  );
+  const activeClass = classes.find((c) => c.id === activeClassId);
+
+  const filteredStudents = students.filter((s) => {
+    if (searchStudent && !s.name.toLowerCase().includes(searchStudent.toLowerCase())) {
+      return false;
+    }
+    const st = attendanceMap[s.id]?.status || 'PRESENT';
+    if (filterMode === 'PRESENT' && st !== 'PRESENT') return false;
+    if (filterMode === 'ABSENT' && st !== 'ABSENT_UNEXCUSED' && st !== 'ABSENT_EXCUSED') return false;
+    if (filterMode === 'LATE' && st !== 'LATE') return false;
+    return true;
+  });
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-5 pb-32 space-y-6">
-      {/* Toast xabari */}
+    <div className="max-w-4xl mx-auto px-2 sm:px-4 py-3 pb-36 space-y-4 font-sans">
+      {/* Toast Notification */}
       {successToast && (
-        <div className="fixed top-20 right-4 z-50 bg-[#006C49] text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 animate-in slide-in-from-top-4 border border-[#6CF8BB]/40">
-          <span className="material-symbols-outlined text-[22px]">check_circle</span>
-          <span className="text-sm font-semibold">{successToast}</span>
+        <div className="fixed top-20 right-4 z-50 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2 animate-in slide-in-from-top-4 border border-emerald-400/40">
+          <span className="material-symbols-outlined text-[20px]">check_circle</span>
+          <span className="text-sm font-bold">{successToast}</span>
         </div>
       )}
 
-      {/* SINF TANLANMAGAN BO'LSA - BARCHA SINFLAR */}
-      {!activeClass ? (
-        <div className="space-y-5">
-          {/* Sarlavha & Smena segmenti */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-[#C4C5D7]/60 shadow-xs">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#1D4ED8] text-[26px]">checklist</span>
-                <h1 className="text-lg sm:text-xl font-bold text-[#131B2E]">
-                  Tezkor Davomat Tekshiruvi
-                </h1>
-                <span className="px-2.5 py-0.5 bg-[#EAEDFF] text-[#0037B0] font-semibold text-xs rounded-full">
-                  Mobil / Inspector
-                </span>
-              </div>
-              <p className="text-xs sm:text-sm text-[#434655] mt-1">
-                Sinfni tanlang va har bir o‘quvchiga 1 marta bosish orqali davomatni belgilang
-              </p>
+      {/* ================= 1. QISQACHA MONITORING (DAVOMATCHI UCHUN) ================= */}
+      {activeTab === 'inspector_monitor' && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-white dark:bg-[#0c121e] p-4 sm:p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs text-center">
+              <span className="text-[11px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                Jami Sinflar
+              </span>
+              <div className="text-3xl font-black text-blue-600 dark:text-blue-400 mt-1 tabular-nums">{classes.length}</div>
             </div>
-
-            {/* Smena Segmented Control */}
-            <div className="inline-flex bg-[#F1F5F9] p-1 rounded-xl border border-[#C4C5D7]/50 self-start sm:self-auto">
-              <button
-                onClick={() => setSelectedShift(1)}
-                className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                  selectedShift === 1
-                    ? 'bg-white text-[#0037B0] font-bold shadow-xs'
-                    : 'text-[#434655] hover:text-[#131B2E]'
-                }`}
-              >
-                1-Smena (Ertalab)
-              </button>
-              <button
-                onClick={() => setSelectedShift(2)}
-                className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                  selectedShift === 2
-                    ? 'bg-white text-[#0037B0] font-bold shadow-xs'
-                    : 'text-[#434655] hover:text-[#131B2E]'
-                }`}
-              >
-                2-Smena (Tushdan keyin)
-              </button>
+            <div className="bg-white dark:bg-[#0c121e] p-4 sm:p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs text-center">
+              <span className="text-[11px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                Topshirilgan
+              </span>
+              <div className="text-3xl font-black text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums">
+                {classes.filter((c) => c.is_submitted).length}
+              </div>
+            </div>
+            <div className="bg-white dark:bg-[#0c121e] p-4 sm:p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs text-center">
+              <span className="text-[11px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                Kutilmoqda
+              </span>
+              <div className="text-3xl font-black text-amber-600 dark:text-amber-400 mt-1 tabular-nums">
+                {classes.filter((c) => !c.is_submitted).length}
+              </div>
+            </div>
+            <div className="bg-white dark:bg-[#0c121e] p-4 sm:p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs text-center">
+              <span className="text-[11px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                Qamrov Ulushi
+              </span>
+              <div className="text-3xl font-black text-purple-600 dark:text-purple-400 mt-1 tabular-nums">
+                {classes.length > 0
+                  ? Math.round((classes.filter((c) => c.is_submitted).length / classes.length) * 100)
+                  : 0}%
+              </div>
             </div>
           </div>
 
-          {/* Sinflar ro'yxati kartochkalari */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-            {classes.map((cls) => {
-              const isDone = cls.is_submitted;
-              return (
-                <div
-                  key={cls.id}
-                  onClick={() => handleSelectClass(cls)}
-                  className={`bg-white rounded-2xl p-5 border transition-all cursor-pointer tap-active relative overflow-hidden group hover:shadow-md ${
-                    isDone
-                      ? 'border-[#A7F3D0] hover:border-[#10B981]'
-                      : 'border-[#C4C5D7]/60 hover:border-[#1D4ED8]'
+          {/* Sinflar topshirish holati ro'yxati */}
+          <div className="bg-white dark:bg-[#0c121e] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs p-5 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="font-extrabold text-base text-slate-900 dark:text-white">
+                  Sinflar Kesimida Monitoring ({selectedDate})
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Qaysi sinf davomati topshirilgan yoki kutilayotganini ko‘rish
+                </p>
+              </div>
+
+              {/* Smena almashtirgich */}
+              <div className="inline-flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] font-bold">
+                <button
+                  onClick={() => setSelectedShift(1)}
+                  className={`px-3 py-1 rounded-lg transition-all ${
+                    selectedShift === 1 ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 font-extrabold shadow-2xs' : 'text-slate-500'
                   }`}
                 >
-                  <div
-                    className={`absolute top-0 left-0 right-0 h-1.5 ${
-                      isDone ? 'bg-[#10B981]' : 'bg-[#F59E0B]'
-                    }`}
-                  />
+                  1-smena
+                </button>
+                <button
+                  onClick={() => setSelectedShift(2)}
+                  className={`px-3 py-1 rounded-lg transition-all ${
+                    selectedShift === 2 ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 font-extrabold shadow-2xs' : 'text-slate-500'
+                  }`}
+                >
+                  2-smena
+                </button>
+              </div>
+            </div>
 
-                  <div className="flex items-center justify-between mb-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {classes.map((cls) => {
+                const isDone = cls.is_submitted;
+                return (
+                  <div
+                    key={cls.id}
+                    onClick={() => setActiveClassId(cls.id)}
+                    className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 flex items-center justify-between gap-3 hover:border-blue-500 transition-all cursor-pointer shadow-2xs"
+                  >
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-xl bg-[#F2F3FF] group-hover:bg-[#EAEDFF] text-[#0037B0] flex items-center justify-center font-bold text-lg transition-colors">
+                      <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-black text-sm text-white shadow-xs ${
+                        isDone ? 'bg-emerald-600' : 'bg-amber-600'
+                      }`}>
                         {cls.name}
                       </div>
                       <div>
-                        <span className="text-xs text-[#434655] font-medium block">
-                          {cls.room || 'Xona ko‘rsatilmagan'}
-                        </span>
-                        <div className="text-xs font-semibold text-[#131B2E]">
-                          {cls.teacher_name || 'Ustoz biriktirilmagan'}
-                        </div>
+                        <h4 className="font-extrabold text-sm text-slate-900 dark:text-white leading-tight">
+                          {cls.name} sinfi {cls.room ? `(${cls.room})` : ''}
+                        </h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                          {cls.teacher_name ? `Rahbar: ${cls.teacher_name}` : 'Rahbar biriktirilmagan'}
+                        </p>
                       </div>
                     </div>
 
-                    <div>
+                    <div className="text-right">
                       {isDone ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#047857] bg-[#ECFDF5] px-2.5 py-1 rounded-full border border-[#A7F3D0]">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                           <span className="material-symbols-outlined text-[14px]">check_circle</span>
-                          Topshirilgan
+                          Tayyor
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#B45309] bg-[#FFFBEB] px-2.5 py-1 rounded-full border border-[#FDE68A]">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                           <span className="material-symbols-outlined text-[14px]">schedule</span>
                           Kutilmoqda
                         </span>
                       )}
+                      <p className="text-[11px] text-slate-400 font-bold mt-1 tabular-nums">
+                        {cls.present_count || 0} / {cls.total_students || 0} nafar
+                      </p>
                     </div>
                   </div>
-
-                  <div className="flex items-center justify-between pt-3 border-t border-[#EAEDFF] text-xs">
-                    <div className="flex items-center gap-1.5 text-[#434655] font-medium">
-                      <span className="material-symbols-outlined text-[16px] text-[#747686]">groups</span>
-                      <span>{cls.total_students} o‘quvchi</span>
-                    </div>
-
-                    <div className="flex items-center gap-2 font-semibold">
-                      <span className="text-[#047857]">✓ {cls.present_count}</span>
-                      <span className="text-[#BE123C]">✕ {cls.unexcused_count}</span>
-                      {cls.excused_count > 0 && <span className="text-[#B45309]">⚠ {cls.excused_count}</span>}
-                      <span className="text-[#747686]">({cls.percentage}%)</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
-      ) : (
-        /* SINF TANLANGAN BO'LSA — 1:1 GOOGLE STITCH MOBIL DIZAYNI */
-        <div className="space-y-5 animate-in fade-in duration-200">
-          {/* TopAppBar Navigation */}
-          <div className="bg-white rounded-2xl border border-[#C4C5D7]/60 p-4 shadow-xs flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setActiveClass(null)}
-                className="p-2 rounded-xl text-[#0037B0] hover:bg-[#EAEDFF] active:scale-95 transition-transform"
-                title="Orqaga"
-              >
-                <span className="material-symbols-outlined text-[24px]">arrow_back</span>
-              </button>
-              <div>
-                <h1 className="text-[17px] font-bold text-[#0037B0] leading-tight">
-                  {activeClass.name} sinfi {activeClass.room ? `(${activeClass.room})` : ''}
-                </h1>
-                <p className="text-[13px] text-[#434655]">
-                  {selectedDate} | {activeClass.teacher_name || 'Ustoz belgilanmagan'}
-                </p>
+      )}
+
+      {/* ================= 2. SINFLAR CAROUSEL / TABS (1-TAP CLASS SWITCHER) ================= */}
+      {activeTab === 'inspector_classes' && (
+        <>
+          <div className="bg-white dark:bg-[#0c121e] p-4 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-blue-600 dark:text-blue-400 text-[20px]">meeting_room</span>
+                <span className="text-xs sm:text-[13px] font-extrabold text-slate-900 dark:text-white">Sinfni tanlang:</span>
+              </div>
+
+              {/* Smena almashtirgich */}
+              <div className="inline-flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200/80 dark:border-slate-800 text-[11px] font-bold">
+                <button
+                  onClick={() => setSelectedShift(1)}
+                  className={`px-3 py-1 rounded-lg transition-all ${
+                    selectedShift === 1 ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 font-extrabold shadow-2xs' : 'text-slate-500'
+                  }`}
+                >
+                  1-smena
+                </button>
+                <button
+                  onClick={() => setSelectedShift(2)}
+                  className={`px-3 py-1 rounded-lg transition-all ${
+                    selectedShift === 2 ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 font-extrabold shadow-2xs' : 'text-slate-500'
+                  }`}
+                >
+                  2-smena
+                </button>
               </div>
             </div>
 
-            {/* Sinfni tezkor o'zgartirish select */}
-            <div className="flex items-center gap-2">
-              <select
-                value={activeClass.id}
-                onChange={(e) => {
-                  const target = classes.find((c) => c.id === e.target.value);
-                  if (target) handleSelectClass(target);
-                }}
-                className="bg-[#F2F3FF] text-[#131B2E] text-[12px] font-semibold rounded-xl px-3 py-1.5 border border-[#C4C5D7]/70 focus:outline-none focus:ring-2 focus:ring-[#1D4ED8]"
-              >
-                {classes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Stitch: Inspection Summary Cards (4 ta rangli metrika kartasi) */}
-          <div className="bg-white rounded-2xl border border-[#C4C5D7]/60 p-4 shadow-xs">
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-[14px] font-bold text-[#131B2E]">Umumiy ko‘rsatkichlar</span>
-              <button
-                onClick={handleMarkAllPresent}
-                className="text-[12px] font-semibold text-[#047857] hover:underline flex items-center gap-1 bg-[#ECFDF5] px-2.5 py-1 rounded-full border border-[#A7F3D0]"
-              >
-                <span className="material-symbols-outlined text-[16px]">done_all</span>
-                Hammasi kelgan
-              </button>
-            </div>
-
-            <div className="grid grid-cols-4 gap-2 text-center">
-              <div className="bg-[#F2F3FF] p-3 rounded-xl border border-[#EAEDFF]">
-                <div className="text-[20px] font-bold text-[#0037B0]">{total}</div>
-                <div className="text-[11px] font-bold text-[#434655] mt-1">Jami</div>
-              </div>
-
-              <div className="bg-[#ECFDF5] p-3 rounded-xl border border-[#A7F3D0]">
-                <div className="text-[20px] font-bold text-[#047857]">{present}</div>
-                <div className="text-[11px] font-bold text-[#047857] mt-1">Kelgan</div>
-              </div>
-
-              <div className="bg-[#FFF1F2] p-3 rounded-xl border border-[#FECDD3]">
-                <div className="text-[20px] font-bold text-[#BE123C]">{absent}</div>
-                <div className="text-[11px] font-bold text-[#BE123C] mt-1">Kelmagan</div>
-              </div>
-
-              <div className="bg-[#FFFBEB] p-3 rounded-xl border border-[#FDE68A]">
-                <div className="text-[20px] font-bold text-[#B45309]">{late}</div>
-                <div className="text-[11px] font-bold text-[#B45309] mt-1">Kechikkan</div>
-              </div>
+            {/* Sinflar scroll rulo (Horizontal chip list) */}
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+              {classes.map((cls) => {
+                const isSelected = cls.id === activeClassId;
+                const isDone = cls.is_submitted;
+                return (
+                  <button
+                    key={cls.id}
+                    onClick={() => setActiveClassId(cls.id)}
+                    className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 shrink-0 active:scale-95 border ${
+                      isSelected
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-600/30 ring-2 ring-blue-600/20'
+                        : isDone
+                        ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                        : 'bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                    }`}
+                  >
+                    <span>{cls.name}</span>
+                    {isDone ? (
+                      <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                    ) : (
+                      <span className="text-[10px] opacity-75 font-semibold tabular-nums">({cls.total_students || 0})</span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Search Bar */}
+          {/* ================= 3. ACTIVE CLASS KPI CARD ================= */}
+          {activeClass && (
+            <div className="bg-white dark:bg-[#0c121e] rounded-3xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-xs space-y-4">
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">
+                      {activeClass.name} sinfi {activeClass.room ? `(${activeClass.room}-xona)` : ''}
+                    </h2>
+                    {isSubmitted ? (
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-extrabold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                        <span className="material-symbols-outlined text-[14px]">check</span>
+                        Topshirilgan
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-extrabold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                        <span className="material-symbols-outlined text-[14px]">schedule</span>
+                        Kutilmoqda
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
+                    Sinf rahbari: <strong className="text-slate-900 dark:text-white">{activeClass.teacher_name || 'Biriktirilmagan'}</strong>
+                  </p>
+                </div>
+
+                {/* Hammasini Bor qilish tugmasi */}
+                <button
+                  onClick={handleMarkAllPresent}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 active:scale-95 transition-all shadow-2xs"
+                >
+                  <span className="material-symbols-outlined text-[18px]">done_all</span>
+                  <span>Barchasi Bor</span>
+                </button>
+              </div>
+
+              {/* 4 ta Mini-Statistik Kartochkalar (Filtr Vazifasini Ham O'taydi) */}
+              <div className="grid grid-cols-4 gap-2 text-center">
+                <button
+                  onClick={() => setFilterMode('ALL')}
+                  className={`p-3 rounded-2xl border transition-all ${
+                    filterMode === 'ALL'
+                      ? 'bg-blue-50 dark:bg-blue-950/50 border-blue-600 ring-2 ring-blue-600/20'
+                      : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+                  }`}
+                >
+                  <div className="text-lg sm:text-xl font-black text-blue-600 dark:text-blue-400 tabular-nums">{total}</div>
+                  <div className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 mt-0.5">Jami</div>
+                </button>
+
+                <button
+                  onClick={() => setFilterMode('PRESENT')}
+                  className={`p-3 rounded-2xl border transition-all ${
+                    filterMode === 'PRESENT'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-600 ring-2 ring-emerald-600/20'
+                      : 'bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900'
+                  }`}
+                >
+                  <div className="text-lg sm:text-xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums">{present}</div>
+                  <div className="text-[11px] font-extrabold text-emerald-700 dark:text-emerald-400 mt-0.5">Kelgan</div>
+                </button>
+
+                <button
+                  onClick={() => setFilterMode('ABSENT')}
+                  className={`p-3 rounded-2xl border transition-all ${
+                    filterMode === 'ABSENT'
+                      ? 'bg-rose-50 dark:bg-rose-950/50 border-rose-600 ring-2 ring-rose-600/20'
+                      : 'bg-rose-50/50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900'
+                  }`}
+                >
+                  <div className="text-lg sm:text-xl font-black text-rose-600 dark:text-rose-400 tabular-nums">{absent}</div>
+                  <div className="text-[11px] font-extrabold text-rose-700 dark:text-rose-400 mt-0.5">Kelmagan</div>
+                </button>
+
+                <button
+                  onClick={() => setFilterMode('LATE')}
+                  className={`p-3 rounded-2xl border transition-all ${
+                    filterMode === 'LATE'
+                      ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-600 ring-2 ring-amber-600/20'
+                      : 'bg-amber-50/50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900'
+                  }`}
+                >
+                  <div className="text-lg sm:text-xl font-black text-amber-600 dark:text-amber-400 tabular-nums">{late}</div>
+                  <div className="text-[11px] font-extrabold text-amber-700 dark:text-amber-400 mt-0.5">Kechikkan</div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ================= 4. SEARCH BAR ================= */}
           <div className="relative">
-            <span className="material-symbols-outlined absolute left-3.5 top-3.5 text-[#747686] text-[20px]">
+            <span className="material-symbols-outlined absolute left-3.5 top-3 text-slate-400 text-[20px]">
               search
             </span>
             <input
               type="text"
               value={searchStudent}
               onChange={(e) => setSearchStudent(e.target.value)}
-              placeholder="O'quvchi F.I.Sh bo‘yicha qidirish..."
-              className="w-full h-12 pl-11 pr-4 bg-white border border-[#C4C5D7]/70 rounded-xl text-sm text-[#131B2E] placeholder-[#747686] focus:border-[#1D4ED8] focus:ring-2 focus:ring-[#1D4ED8]/15 transition-all outline-none"
+              placeholder="O‘quvchi ismini tezkor qidirish..."
+              className="w-full h-11 pl-11 pr-4 bg-white dark:bg-[#0c121e] border border-slate-200/80 dark:border-slate-800 rounded-2xl text-xs sm:text-[13px] text-slate-900 dark:text-white placeholder-slate-400 focus:border-blue-600 outline-none transition-all shadow-2xs font-medium"
             />
+            {searchStudent && (
+              <button
+                onClick={() => setSearchStudent('')}
+                className="absolute right-3.5 top-2.5 text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            )}
           </div>
 
-          {/* Student Inspection Cards List (Stitch 1:1 Kartochkalari) */}
-          <div className="space-y-3">
-            {filteredStudents.map((student, idx) => {
-              const currentStatus = attendanceMap[student.id]?.status || 'PRESENT';
-              const isPresent = currentStatus === 'PRESENT';
-              const isAbsent = currentStatus === 'ABSENT_UNEXCUSED';
-              const isLate = currentStatus === 'LATE';
+          {/* ================= 5. COMPACT STUDENT LIST ================= */}
+          <div className="space-y-2.5">
+            {filteredStudents.length === 0 ? (
+              <div className="p-8 text-center bg-white dark:bg-[#0c121e] rounded-3xl border border-slate-200/80 dark:border-slate-800">
+                <span className="material-symbols-outlined text-[36px] text-slate-400">person_search</span>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 font-medium">O‘quvchilar topilmadi</p>
+              </div>
+            ) : (
+              filteredStudents.map((student, idx) => {
+                const currentStatus = attendanceMap[student.id]?.status || 'PRESENT';
+                const isPresent = currentStatus === 'PRESENT';
+                const isAbsent = currentStatus === 'ABSENT_UNEXCUSED' || currentStatus === 'ABSENT_EXCUSED';
+                const isLate = currentStatus === 'LATE';
 
-              const indexStr = (idx + 1).toString().padStart(2, '0');
+                const indexNum = (idx + 1).toString().padStart(2, '0');
 
-              return (
-                <div
-                  key={student.id}
-                  className="bg-white rounded-2xl border border-[#C4C5D7]/60 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:border-[#747686] transition-colors shadow-xs"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#EAEDFF] text-[#0037B0] font-bold flex items-center justify-center text-sm shrink-0">
-                      {indexStr}
+                return (
+                  <div
+                    key={student.id}
+                    data-student-card="true"
+                    onClick={() =>
+                      setSelectedStudentForMonthly({
+                        id: student.id,
+                        name: student.name,
+                        class_name: activeClass?.name,
+                      })
+                    }
+                    className={`bg-white dark:bg-[#0c121e] rounded-2xl border p-3 flex items-center justify-between gap-3 transition-all cursor-pointer select-none shadow-2xs hover:shadow-xs ${
+                      isPresent
+                        ? 'border-slate-200/80 dark:border-slate-800 hover:border-blue-500'
+                        : isAbsent
+                        ? 'border-rose-300 dark:border-rose-900 bg-rose-50/30 dark:bg-rose-950/20 ring-1 ring-rose-500/20'
+                        : 'border-amber-300 dark:border-amber-900 bg-amber-50/30 dark:bg-amber-950/20 ring-1 ring-amber-500/20'
+                    }`}
+                  >
+                    {/* Left: Index badge + Name */}
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs shrink-0 tabular-nums ${
+                          isPresent
+                            ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400'
+                            : isAbsent
+                            ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400'
+                            : 'bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400'
+                        }`}
+                      >
+                        {indexNum}
+                      </div>
+                      <div className="min-w-0">
+                        <p
+                          className={`text-xs sm:text-sm font-extrabold truncate leading-tight ${
+                            isAbsent ? 'text-rose-700 dark:text-rose-400' : 'text-slate-900 dark:text-white'
+                          }`}
+                        >
+                          {student.name}
+                        </p>
+                        <p className="text-[11px] text-slate-400 truncate mt-0.5 flex items-center gap-1 font-medium">
+                          <span>{student.gender === 'male' ? 'O‘g‘il bola' : 'Qiz bola'}</span>
+                          <span>•</span>
+                          <span className="text-blue-600 dark:text-blue-400 font-semibold">Taqvim</span>
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h2 className="text-[16px] font-bold text-[#131B2E] leading-snug">
-                        {student.name}
-                      </h2>
-                      <p className="text-[12px] text-[#434655]">
-                        ID: #{activeClass.name}-{indexStr}
-                        {student.parent_phone && ` • ${student.parent_phone}`}
-                      </p>
+
+                    {/* Right: Segmented 3-button control (Bor / Yo'q / Kech) */}
+                    <div
+                      className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl shrink-0 border border-slate-200/60 dark:border-slate-800"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={(e) => handleSetStatus(e, student.id, 'PRESENT')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                          isPresent
+                            ? 'bg-emerald-600 text-white shadow-xs'
+                            : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        Bor
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => handleSetStatus(e, student.id, 'ABSENT_UNEXCUSED')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                          isAbsent
+                            ? 'bg-rose-600 text-white shadow-xs'
+                            : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        Yo‘q
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => handleSetStatus(e, student.id, 'LATE')}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                          isLate
+                            ? 'bg-amber-600 text-white shadow-xs'
+                            : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        Kech
+                      </button>
                     </div>
                   </div>
-
-                  {/* Segmented 3-talik tugmalar guruhi */}
-                  <div className="flex items-center gap-1.5 w-full sm:w-auto bg-[#F1F5F9] p-1.5 rounded-xl self-end sm:self-auto">
-                    <button
-                      type="button"
-                      onClick={() => handleSetStatus(student.id, 'PRESENT')}
-                      className={`flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-[13px] font-semibold transition-all ${
-                        isPresent
-                          ? 'bg-[#10B981] text-white shadow-sm'
-                          : 'text-[#475569] hover:text-[#131B2E]'
-                      }`}
-                    >
-                      Bor
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleSetStatus(student.id, 'ABSENT_UNEXCUSED')}
-                      className={`flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-[13px] font-semibold transition-all ${
-                        isAbsent
-                          ? 'bg-[#F43F5E] text-white shadow-sm'
-                          : 'text-[#475569] hover:text-[#131B2E]'
-                      }`}
-                    >
-                      Yo‘q
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleSetStatus(student.id, 'LATE')}
-                      className={`flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-[13px] font-semibold transition-all ${
-                        isLate
-                          ? 'bg-[#F59E0B] text-white shadow-sm'
-                          : 'text-[#475569] hover:text-[#131B2E]'
-                      }`}
-                    >
-                      Kechikkan
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
 
-          {/* Sticky Execution Tray (Pastki yopishqoq panel - Stitch 1:1) */}
-          <div className="fixed bottom-0 left-0 w-full bg-white border-t border-[#C4C5D7]/70 p-4 shadow-[0_-4px_12px_rgba(15,23,42,0.06)] z-50">
-            <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
-              <div className="hidden sm:block">
-                <p className="text-[14px] font-bold text-[#131B2E]">
-                  {activeClass.name} sinfi davomati
+          {/* ================= 6. STICKY EXECUTION TRAY (DAVOMATNI TOPSHIRISH) ================= */}
+          <div className="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-[#0c121e]/95 backdrop-blur-xl border-t border-slate-200/80 dark:border-slate-800 p-3 sm:p-4 shadow-lg z-40 lg:pl-72">
+            <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white">
+                  {activeClass?.name || 'Sinf'} davomati
                 </p>
-                <p className="text-[12px] text-[#434655]">
-                  {total} ta o‘quvchidan {present} tasi darsda, {absent} tasi kelmagan
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  <strong className="text-emerald-600 dark:text-emerald-400 tabular-nums">{present} ta keldi</strong>,{' '}
+                  <strong className="text-rose-600 dark:text-rose-400 tabular-nums">{absent} ta kelmadi</strong>
                 </p>
               </div>
 
-              <div className="flex items-center gap-2.5 w-full sm:w-auto">
-                <button
-                  onClick={() => setActiveClass(null)}
-                  className="w-1/3 sm:w-auto px-4 py-2.5 rounded-xl border border-[#C4C5D7] text-[#434655] font-semibold text-sm hover:bg-[#F2F3FF]"
-                >
-                  Orqaga
-                </button>
-                <button
-                  onClick={handleSaveAndSubmit}
-                  disabled={saving}
-                  className="w-2/3 sm:w-auto flex-1 sm:flex-none min-h-[48px] px-6 bg-[#1D4ED8] hover:bg-[#0037B0] text-white text-[14px] font-bold rounded-xl shadow-md active:scale-[0.98] transition-transform duration-150 flex items-center justify-center gap-2"
-                >
-                  <span className="material-symbols-outlined text-[20px]">send</span>
-                  <span>{saving ? 'Saqlanmoqda...' : 'Davomatni tasdiqlash va yuborish'}</span>
-                </button>
-              </div>
+              <button
+                onClick={handleSaveAndSubmit}
+                disabled={saving || !activeClassId}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-2xl font-extrabold text-xs sm:text-sm shadow-md shadow-blue-600/25 active:scale-95 transition-all disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined text-[18px]">send</span>
+                <span>{saving ? 'Yuborilmoqda...' : 'Davomatni yuborish'}</span>
+              </button>
             </div>
           </div>
-        </div>
+        </>
+      )}
+
+      {/* ================= MODAL: O'QUVCHI OYLIK TAQVIMI ================= */}
+      {selectedStudentForMonthly && (
+        <StudentMonthlyModal
+          student={selectedStudentForMonthly}
+          currentDate={selectedDate}
+          onClose={() => setSelectedStudentForMonthly(null)}
+        />
       )}
     </div>
   );

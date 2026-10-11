@@ -27,6 +27,9 @@ export async function verifyToken(token: string) {
   }
 }
 
+// Tezkor kesh (Har bir so'rovda Neon DB ga ortiqcha 200-400ms takroriy so'rov yubormaslik uchun)
+const userCache = new Map<string, { user: User; expires: number }>();
+
 export async function getCurrentUser(): Promise<User | null> {
   try {
     const cookieStore = await cookies();
@@ -35,6 +38,11 @@ export async function getCurrentUser(): Promise<User | null> {
 
     const decoded = await verifyToken(token);
     if (!decoded) return null;
+
+    const cached = userCache.get(decoded.id);
+    if (cached && cached.expires > Date.now()) {
+      return cached.user;
+    }
 
     try {
       const res = await query(
@@ -51,7 +59,7 @@ export async function getCurrentUser(): Promise<User | null> {
       if (res.rows.length === 0) return null;
 
       const u = res.rows[0];
-      return {
+      const user: User = {
         id: u.id,
         name: u.name,
         username: u.username,
@@ -60,10 +68,14 @@ export async function getCurrentUser(): Promise<User | null> {
         school_name: u.school_name || undefined,
         phone: u.phone,
         avatar: u.avatar,
-        assigned_class_id: u.assigned_class_id || undefined,
-        assigned_class_name: u.assigned_class_name || undefined,
+        assigned_class_id: u.assigned_class_id,
+        assigned_class_name: u.assigned_class_name,
         created_at: u.created_at,
       };
+
+      // 30 soniyalik tezkor kesh
+      userCache.set(decoded.id, { user, expires: Date.now() + 30000 });
+      return user;
     } catch (dbErr) {
       console.warn('Database query fallback in getCurrentUser:', dbErr);
       // Token mavjud va to'g'ri bo'lsa, xatolik chiqarmasdan foydalanuvchini qaytarish

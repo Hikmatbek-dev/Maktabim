@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import { getCached, setCached, clearCache } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +16,12 @@ export async function GET(req: NextRequest) {
     const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
     const shift = searchParams.get('shift');
     const schoolId = searchParams.get('school_id') || user.school_id || 'sch_1';
+
+    const cacheKey = `classes_${schoolId}_${date}_${shift || 'all'}`;
+    const cachedClasses = getCached<any>(cacheKey);
+    if (cachedClasses) {
+      return NextResponse.json({ classes: cachedClasses });
+    }
 
     let sql = `
       SELECT 
@@ -56,6 +63,7 @@ export async function GET(req: NextRequest) {
       };
     });
 
+    setCached(cacheKey, classes, 30);
     return NextResponse.json({ classes });
   } catch (err: any) {
     console.error('Classes list error:', err);
@@ -66,8 +74,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const user = await getCurrentUser();
-    if (!user || user.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Faqat Super Admin yangi sinf qo‘sha oladi' }, { status: 403 });
+    if (!user || (user.role !== 'SUPER_ADMIN' && user.role !== 'DIRECTOR')) {
+      return NextResponse.json({ error: 'Faqat Direktor sinf qo‘sha oladi' }, { status: 403 });
     }
 
     const { name, grade, shift, room, teacher_id, school_id } = await req.json();
@@ -85,6 +93,7 @@ export async function POST(req: NextRequest) {
       [classId, targetSchoolId, name.trim(), parseInt(grade), parseInt(shift || '1'), room || null, teacher_id || null]
     );
 
+    clearCache();
     return NextResponse.json({ success: true, classId });
   } catch (err: any) {
     console.error('Create class error:', err);
@@ -95,8 +104,8 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const user = await getCurrentUser();
-    if (!user || user.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Faqat Super Admin sinfni o‘chira oladi' }, { status: 403 });
+    if (!user || (user.role !== 'SUPER_ADMIN' && user.role !== 'DIRECTOR')) {
+      return NextResponse.json({ error: 'Faqat Direktor sinfni o‘chira oladi' }, { status: 403 });
     }
 
     const { searchParams } = new URL(req.url);
@@ -107,7 +116,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     await query(`DELETE FROM classes WHERE id = $1`, [id]);
-
+    clearCache();
     return NextResponse.json({ success: true, message: 'Sinf muvaffaqiyatli o‘chirildi' });
   } catch (err: any) {
     console.error('Delete class error:', err);

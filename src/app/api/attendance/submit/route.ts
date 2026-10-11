@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import { clearCache } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +31,7 @@ export async function POST(req: NextRequest) {
       [subId, schoolId, date, class_id, user.id]
     );
 
+    clearCache();
     return NextResponse.json({
       success: true,
       message: 'Davomat muvaffaqiyatli topshirildi va tasdiqlandi!',

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import { clearCache } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -145,6 +146,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    clearCache();
     return NextResponse.json({
       success: true,
       message: `${records.length} ta o‘quvchi davomati saqlandi`,

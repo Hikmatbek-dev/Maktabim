@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import { getCached, setCached } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,12 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
+
+    const cacheKey = `schools_${date}`;
+    const cachedSchools = getCached<any>(cacheKey);
+    if (cachedSchools) {
+      return NextResponse.json({ schools: cachedSchools });
+    }
 
     // Har bir maktab bo'yicha tahliliy ma'lumotlar bilan
     const res = await query(
@@ -41,6 +48,7 @@ export async function GET(req: NextRequest) {
       };
     });
 
+    setCached(cacheKey, schools, 60);
     return NextResponse.json({ schools });
   } catch (err: any) {
     console.error('Fetch schools error:', err);
