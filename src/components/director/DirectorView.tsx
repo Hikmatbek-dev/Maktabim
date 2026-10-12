@@ -557,7 +557,7 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
                   Sinflar Kesimida Davomat Jurnali
                 </h2>
                 <span className="px-2.5 py-0.5 bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 rounded-full text-xs font-bold">
-                  28 ta sinf
+                  {classes.length} ta sinf
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">

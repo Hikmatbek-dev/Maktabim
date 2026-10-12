@@ -62,14 +62,14 @@ export function Sidebar({
   if (user.role === 'DIRECTOR' || user.role === 'DEPUTY_DIRECTOR') {
     navItems = [
       { id: 'director_summary', label: 'Kunlik Xulosa', icon: 'dashboard', subtitle: 'Maktab ko‘rsatkichlari' },
-      { id: 'classes', label: 'Sinflar Jurnali', icon: 'meeting_room', subtitle: '28 ta sinf arxivi' },
+      { id: 'classes', label: 'Sinflar Jurnali', icon: 'meeting_room', subtitle: 'Barcha sinflar arxivi' },
       { id: 'attendance_reports', label: 'Davomat Tahlili', icon: 'analytics', subtitle: 'Hisobot & Eksport' },
       { id: 'staff', label: 'Maktab Xodimlari', icon: 'badge', subtitle: 'Pedagoglar & Loginlar' },
     ];
   } else if (user.role === 'INSPECTOR') {
     navItems = [
       { id: 'inspector_monitor', label: 'Tezkor Monitoring', icon: 'bar_chart', subtitle: 'Smena hisob-kitoblari' },
-      { id: 'inspector_classes', label: 'Sinflar Yo‘qlamasi', icon: 'fact_check', subtitle: '28 ta sinf davomati' },
+      { id: 'inspector_classes', label: 'Sinflar Yo‘qlamasi', icon: 'fact_check', subtitle: 'Barcha sinflar davomati' },
     ];
   } else if (user.role === 'TEACHER') {
     navItems = [
