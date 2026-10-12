@@ -42,12 +42,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleQuickDemo = (u: string, p: string) => {
-    setUsername(u);
-    setPassword(p);
-    handleLogin(undefined, u, p);
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#090d16] flex items-center justify-center p-4 sm:p-6 font-sans transition-colors">
       <div className="max-w-md w-full space-y-6">
@@ -128,55 +122,6 @@ export default function LoginPage() {
               <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
             </button>
           </form>
-
-          {/* Tezkor Demo Rollari */}
-          <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                <span className="material-symbols-outlined text-amber-500 text-[16px]">bolt</span>
-                1 bosishda kirish
-              </span>
-              <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400">Demo hisoblar</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => handleQuickDemo('direktor', 'direktor123')}
-                className="p-3 rounded-2xl bg-blue-50/80 dark:bg-blue-950/40 hover:bg-blue-100/80 border border-blue-200/80 dark:border-blue-900/60 text-blue-800 dark:text-blue-300 font-extrabold text-left transition-all active:scale-95 shadow-2xs"
-              >
-                <div>🎓 Direktor</div>
-                <span className="text-[10px] text-blue-600/80 dark:text-blue-400/80 font-medium">Boshqaruv & Tahlil</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickDemo('davomatchi', 'davomat123')}
-                className="p-3 rounded-2xl bg-amber-50/80 dark:bg-amber-950/40 hover:bg-amber-100/80 border border-amber-200/80 dark:border-amber-900/60 text-amber-800 dark:text-amber-300 font-extrabold text-left transition-all active:scale-95 shadow-2xs"
-              >
-                <div>📱 Davomatchi</div>
-                <span className="text-[10px] text-amber-700/80 dark:text-amber-400/80 font-medium">28 sinf yo‘qlamasi</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickDemo('ustoz', 'ustoz123')}
-                className="p-3 rounded-2xl bg-emerald-50/80 dark:bg-emerald-950/40 hover:bg-emerald-100/80 border border-emerald-200/80 dark:border-emerald-900/60 text-emerald-800 dark:text-emerald-300 font-extrabold text-left transition-all active:scale-95 shadow-2xs"
-              >
-                <div>👩‍🏫 Sinf Rahbari</div>
-                <span className="text-[10px] text-emerald-700/80 dark:text-emerald-400/80 font-medium">5-A sinf jurnali</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickDemo('zamdirektor', 'zam123')}
-                className="p-3 rounded-2xl bg-purple-50/80 dark:bg-purple-950/40 hover:bg-purple-100/80 border border-purple-200/80 dark:border-purple-900/60 text-purple-800 dark:text-purple-300 font-extrabold text-left transition-all active:scale-95 shadow-2xs"
-              >
-                <div>📋 Zamdirektor</div>
-                <span className="text-[10px] text-purple-700/80 dark:text-purple-400/80 font-medium">Nazorat & Hisobot</span>
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Footer info */}

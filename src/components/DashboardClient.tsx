@@ -85,28 +85,6 @@ export function DashboardClient({ user }: DashboardClientProps) {
     setCurrentSchoolId(schoolId);
   };
 
-  // Demo rolni tezkor almashtirish
-  const handleQuickSwitchRole = async (username: string) => {
-    try {
-      await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username,
-          password:
-            username === 'direktor'
-              ? 'direktor123'
-              : username === 'davomatchi'
-              ? 'davomat123'
-              : 'ustoz123',
-        }),
-      });
-      window.location.reload();
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
   const getSectionTitle = (section: NavSection) => {
     switch (section) {
       case 'director_summary': return 'Maktab bo‘yicha kunlik xulosa';
@@ -167,44 +145,8 @@ export function DashboardClient({ user }: DashboardClientProps) {
             </div>
           </div>
 
-          {/* O'ng tomon: Tezkor Demo Rollar Switcheri va Tungi Rejim */}
+          {/* O'ng tomon: Tungi Rejim va Yangilash */}
           <div className="flex items-center gap-2">
-            <div className="hidden sm:flex items-center gap-1 bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-2xl text-xs font-semibold border border-slate-200/60 dark:border-slate-700/60 shadow-2xs">
-              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-extrabold px-1.5 uppercase tracking-wider">
-                Rol:
-              </span>
-              <button
-                onClick={() => handleQuickSwitchRole('direktor')}
-                className={`px-2.5 py-1 rounded-xl text-[12px] font-bold transition-all ${
-                  user.role === 'DIRECTOR'
-                    ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                Direktor
-              </button>
-              <button
-                onClick={() => handleQuickSwitchRole('davomatchi')}
-                className={`px-2.5 py-1 rounded-xl text-[12px] font-bold transition-all ${
-                  user.role === 'INSPECTOR'
-                    ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                Davomatchi
-              </button>
-              <button
-                onClick={() => handleQuickSwitchRole('ustoz')}
-                className={`px-2.5 py-1 rounded-xl text-[12px] font-bold transition-all ${
-                  user.role === 'TEACHER'
-                    ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                Ustoz
-              </button>
-            </div>
-
             {/* Dark mode button in header */}
             <button
               onClick={toggleDarkMode}
