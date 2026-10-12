@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import { clearCache } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,8 +51,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const user = await getCurrentUser();
-    if (!user || (user.role !== 'SUPER_ADMIN' && user.role !== 'DIRECTOR')) {
-      return NextResponse.json({ error: 'Faqat Admin yoki Rahbariyat o‘quvchi qo‘sha oladi' }, { status: 403 });
+    // Barcha autentifikatsiyadan o'tgan rollar (DIRECTOR, DEPUTY_DIRECTOR, INSPECTOR, TEACHER) o'quvchi qo'sha oladi
+    if (!user) {
+      return NextResponse.json({ error: 'Ruxsat berilmagan' }, { status: 401 });
     }
 
     const { name, class_id, gender, parent_name, parent_phone, birth_date, school_id } = await req.json();
@@ -84,6 +86,9 @@ export async function POST(req: NextRequest) {
       ]
     );
 
+    // Keshni tozalash, yangi o'quvchi darhol ro'yxatda chiqishi uchun
+    clearCache();
+
     return NextResponse.json({ success: true, studentId });
   } catch (err: any) {
     console.error('Create student error:', err);
@@ -94,8 +99,8 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const user = await getCurrentUser();
-    if (!user || (user.role !== 'SUPER_ADMIN' && user.role !== 'DIRECTOR')) {
-      return NextResponse.json({ error: 'Ruxsat berilmagan' }, { status: 403 });
+    if (!user) {
+      return NextResponse.json({ error: 'Ruxsat berilmagan' }, { status: 401 });
     }
 
     const { id, name, class_id, gender, parent_name, parent_phone } = await req.json();
@@ -111,6 +116,8 @@ export async function PUT(req: NextRequest) {
        WHERE id = $6`,
       [name.trim(), class_id || null, gender || null, parent_name || null, parent_phone || null, id]
     );
+
+    clearCache();
 
     return NextResponse.json({ success: true, message: 'O‘quvchi maʼlumotlari yangilandi' });
   } catch (err: any) {

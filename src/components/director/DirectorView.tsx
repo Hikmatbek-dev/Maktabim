@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { StudentMonthlyModal } from '../StudentMonthlyModal';
+import { AddStudentModal } from '../AddStudentModal';
 
 interface DirectorViewProps {
   selectedDate: string;
@@ -23,6 +24,10 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
   const [selectedClassModal, setSelectedClassModal] = useState<any | null>(null);
   const [classDetailsLoading, setClassDetailsLoading] = useState(false);
   const [classStudents, setClassStudents] = useState<any[]>([]);
+
+  // O'quvchi qo'shish modali
+  const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
+  const [addStudentTargetClassId, setAddStudentTargetClassId] = useState<string>('');
 
   // O'quvchi oylik kalendar modali
   const [selectedStudentForMonthly, setSelectedStudentForMonthly] = useState<any | null>(null);
@@ -583,6 +588,18 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
                 <option value="SUBMITTED">Topshirilgan</option>
                 <option value="PENDING">Kutilmoqda</option>
               </select>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setAddStudentTargetClassId('');
+                  setIsAddStudentOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm active:scale-95 transition-all"
+              >
+                <span className="material-symbols-outlined text-[16px]">person_add</span>
+                <span>+ O‘quvchi qo‘shish</span>
+              </button>
             </div>
           </div>
 
@@ -962,12 +979,25 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
                   Sinf rahbari: {selectedClassModal.teacher_name || 'Yo‘q'} • Sana: {selectedDate}
                 </p>
               </div>
-              <button
-                onClick={() => setSelectedClassModal(null)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white"
-              >
-                <span className="material-symbols-outlined text-[20px]">close</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddStudentTargetClassId(selectedClassModal.id);
+                    setIsAddStudentOpen(true);
+                  }}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm active:scale-95 transition-all"
+                >
+                  <span className="material-symbols-outlined text-[16px]">person_add</span>
+                  <span>+ O‘quvchi qo‘shish</span>
+                </button>
+                <button
+                  onClick={() => setSelectedClassModal(null)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white"
+                >
+                  <span className="material-symbols-outlined text-[20px]">close</span>
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto py-3 space-y-2 custom-scrollbar">
@@ -1038,6 +1068,22 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
           onClose={() => setSelectedStudentForMonthly(null)}
         />
       )}
+
+      {/* ================= MODAL: YANGI O'QUVCHI QO'SHISH ================= */}
+      <AddStudentModal
+        isOpen={isAddStudentOpen}
+        onClose={() => setIsAddStudentOpen(false)}
+        onSuccess={() => {
+          showToast('Yangi o‘quvchi muvaffaqiyatli qo‘shildi!');
+          fetchAllData();
+          if (selectedClassModal) {
+            handleOpenClassDetails(selectedClassModal);
+          }
+        }}
+        classes={classes.map((c) => ({ id: c.id, name: c.name }))}
+        defaultClassId={addStudentTargetClassId}
+        schoolId={schoolId}
+      />
     </div>
   );
 }

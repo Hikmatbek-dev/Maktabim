@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Student, AttendanceStatus } from '@/lib/types';
 import { StudentMonthlyModal } from '../StudentMonthlyModal';
+import { AddStudentModal } from '../AddStudentModal';
 
 interface TeacherViewProps {
   user: User;
@@ -18,6 +19,9 @@ export function TeacherView({ user, selectedDate, schoolId, activeTab = 'teacher
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+
+  // O'quvchi qo'shish modali
+  const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
 
   // O'quvchi oylik kalendar modali
   const [selectedStudentForMonthly, setSelectedStudentForMonthly] = useState<any | null>(null);
@@ -225,14 +229,25 @@ export function TeacherView({ user, selectedDate, schoolId, activeTab = 'teacher
             </p>
           </div>
 
-          <button
-            onClick={handleSaveAttendance}
-            disabled={saving}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-blue-600/20 active:scale-95 transition-all disabled:opacity-50"
-          >
-            <span className="material-symbols-outlined text-[18px]">save</span>
-            <span>{saving ? 'Saqlanmoqda...' : 'Saqlash'}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsAddStudentOpen(true)}
+              className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-emerald-600/20 active:scale-95 transition-all"
+            >
+              <span className="material-symbols-outlined text-[18px]">person_add</span>
+              <span>+ O‘quvchi qo‘shish</span>
+            </button>
+
+            <button
+              onClick={handleSaveAttendance}
+              disabled={saving}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-blue-600/20 active:scale-95 transition-all disabled:opacity-50"
+            >
+              <span className="material-symbols-outlined text-[18px]">save</span>
+              <span>{saving ? 'Saqlanmoqda...' : 'Saqlash'}</span>
+            </button>
+          </div>
         </div>
 
         <div className="space-y-2.5">
@@ -386,6 +401,24 @@ export function TeacherView({ user, selectedDate, schoolId, activeTab = 'teacher
           onClose={() => setSelectedStudentForMonthly(null)}
         />
       )}
+
+      {/* ================= MODAL: YANGI O'QUVCHI QO'SHISH ================= */}
+      <AddStudentModal
+        isOpen={isAddStudentOpen}
+        onClose={() => setIsAddStudentOpen(false)}
+        onSuccess={() => {
+          setToast('Yangi o‘quvchi sinfga qo‘shildi!');
+          setTimeout(() => setToast(null), 3000);
+          loadClassAttendance();
+        }}
+        classes={
+          classes.length > 0
+            ? classes.filter((c) => c.id === activeClassId).map((c) => ({ id: c.id, name: c.name }))
+            : [{ id: activeClassId, name: currentClass.name || 'Sinf' }]
+        }
+        defaultClassId={activeClassId}
+        schoolId={schoolId}
+      />
     </div>
   );
 }

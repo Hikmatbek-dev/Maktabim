@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { SchoolClass, Student, AttendanceStatus } from '@/lib/types';
 import { StudentMonthlyModal } from '../StudentMonthlyModal';
+import { AddStudentModal } from '../AddStudentModal';
 
 interface InspectorViewProps {
   selectedDate: string;
@@ -23,6 +24,9 @@ export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_c
   const [searchStudent, setSearchStudent] = useState('');
   const [filterMode, setFilterMode] = useState<'ALL' | 'PRESENT' | 'ABSENT' | 'LATE'>('ALL');
   const [studentsLoading, setStudentsLoading] = useState(false);
+
+  // O'quvchi qo'shish modali
+  const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
 
   // O'quvchi ustiga bosilganda oylik taqvim modali
   const [selectedStudentForMonthly, setSelectedStudentForMonthly] = useState<any | null>(null);
@@ -412,14 +416,25 @@ export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_c
                   </p>
                 </div>
 
-                {/* Hammasini Bor qilish tugmasi */}
-                <button
-                  onClick={handleMarkAllPresent}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 active:scale-95 transition-all shadow-2xs"
-                >
-                  <span className="material-symbols-outlined text-[18px]">done_all</span>
-                  <span>Barchasi Bor</span>
-                </button>
+                {/* Hammasini Bor qilish va O'quvchi qo'shish tugmalari */}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddStudentOpen(true)}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20 active:scale-95 transition-all"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">person_add</span>
+                    <span>+ O‘quvchi qo‘shish</span>
+                  </button>
+
+                  <button
+                    onClick={handleMarkAllPresent}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 active:scale-95 transition-all shadow-2xs"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">done_all</span>
+                    <span>Barchasi Bor</span>
+                  </button>
+                </div>
               </div>
 
               {/* 4 ta Mini-Statistik Kartochkalar (Filtr Vazifasini Ham O'taydi) */}
@@ -640,6 +655,23 @@ export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_c
           onClose={() => setSelectedStudentForMonthly(null)}
         />
       )}
+
+      {/* ================= MODAL: YANGI O'QUVCHI QO'SHISH ================= */}
+      <AddStudentModal
+        isOpen={isAddStudentOpen}
+        onClose={() => setIsAddStudentOpen(false)}
+        onSuccess={() => {
+          setSuccessToast('Yangi o‘quvchi muvaffaqiyatli qo‘shildi!');
+          setTimeout(() => setSuccessToast(null), 3000);
+          loadClasses();
+          if (activeClassId) {
+            loadClassAttendance(activeClassId);
+          }
+        }}
+        classes={classes.map((c) => ({ id: c.id, name: c.name }))}
+        defaultClassId={activeClassId}
+        schoolId={schoolId}
+      />
     </div>
   );
 }
