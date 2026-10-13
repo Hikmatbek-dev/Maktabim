@@ -438,7 +438,7 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
                     <div className="flex items-center justify-between text-xs sm:text-[13px] mb-2">
                       <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full bg-blue-600 ring-2 ring-blue-100 dark:ring-blue-900"></span>
-                        1-Smena (08:00 – 13:00)
+                        1-Smena (8, 9, 10, 11-sinflar • 08:00 – 13:00)
                       </span>
                       <span className="font-extrabold text-blue-600 dark:text-blue-400 tabular-nums">{s1.rate}% ({s1.present}/{s1.total})</span>
                     </div>
@@ -451,7 +451,7 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
                     <div className="flex items-center justify-between text-xs sm:text-[13px] mb-2">
                       <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 ring-2 ring-emerald-100 dark:ring-emerald-900"></span>
-                        2-Smena (13:15 – 18:00)
+                        2-Smena (5, 6, 7-sinflar • 13:30 – 18:30)
                       </span>
                       <span className="font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">{s2.rate}% ({s2.present}/{s2.total})</span>
                     </div>
@@ -1023,17 +1023,17 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
                       }
                       className="p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 hover:border-blue-500 transition-all flex items-center justify-between gap-2 cursor-pointer shadow-2xs"
                     >
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-extrabold text-slate-400 w-5 tabular-nums">
+                      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+                        <span className="text-xs font-extrabold text-slate-400 w-5 tabular-nums shrink-0">
                           {(idx + 1).toString().padStart(2, '0')}
                         </span>
-                        <div>
-                          <p className="text-xs sm:text-[13px] font-extrabold text-slate-900 dark:text-white">{st.student_name}</p>
-                          <span className="text-[11px] text-slate-400">{st.parent_name || 'Ota-ona'}</span>
+                        <div className="min-w-0 flex-1 pr-1">
+                          <p className="text-xs sm:text-[13px] font-extrabold text-slate-900 dark:text-white leading-tight break-words">{st.student_name}</p>
+                          <span className="text-[10px] sm:text-[11px] text-slate-400">{st.parent_name || 'Ota-ona'}</span>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                         <span
                           className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold ${
                             isPresent

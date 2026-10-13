@@ -268,7 +268,7 @@ export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_c
                     selectedShift === 1 ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 font-extrabold shadow-2xs' : 'text-slate-500'
                   }`}
                 >
-                  1-smena
+                  1-smena (08:00)
                 </button>
                 <button
                   onClick={() => setSelectedShift(2)}
@@ -276,7 +276,7 @@ export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_c
                     selectedShift === 2 ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 font-extrabold shadow-2xs' : 'text-slate-500'
                   }`}
                 >
-                  2-smena
+                  2-smena (13:30)
                 </button>
               </div>
             </div>
@@ -348,7 +348,7 @@ export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_c
                     selectedShift === 1 ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 font-extrabold shadow-2xs' : 'text-slate-500'
                   }`}
                 >
-                  1-smena
+                  1-smena (08:00)
                 </button>
                 <button
                   onClick={() => setSelectedShift(2)}
@@ -356,7 +356,7 @@ export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_c
                     selectedShift === 2 ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 font-extrabold shadow-2xs' : 'text-slate-500'
                   }`}
                 >
-                  2-smena
+                  2-smena (13:30)
                 </button>
               </div>
             </div>
@@ -547,10 +547,10 @@ export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_c
                         : 'border-amber-300 dark:border-amber-900 bg-amber-50/30 dark:bg-amber-950/20 ring-1 ring-amber-500/20'
                     }`}
                   >
-                    {/* Left: Index badge + Name */}
-                    <div className="flex items-center gap-3 min-w-0">
+                    {/* Left: Index badge + Full Name */}
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                       <div
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs shrink-0 tabular-nums ${
+                        className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center font-black text-[11px] sm:text-xs shrink-0 tabular-nums ${
                           isPresent
                             ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400'
                             : isAbsent
@@ -560,15 +560,15 @@ export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_c
                       >
                         {indexNum}
                       </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1 pr-1">
                         <p
-                          className={`text-xs sm:text-sm font-extrabold truncate leading-tight ${
+                          className={`text-xs sm:text-sm font-extrabold leading-tight break-words ${
                             isAbsent ? 'text-rose-700 dark:text-rose-400' : 'text-slate-900 dark:text-white'
                           }`}
                         >
                           {student.name}
                         </p>
-                        <p className="text-[11px] text-slate-400 truncate mt-0.5 flex items-center gap-1 font-medium">
+                        <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5 flex items-center gap-1 font-medium">
                           <span>{student.gender === 'male' ? 'O‘g‘il bola' : 'Qiz bola'}</span>
                           <span>•</span>
                           <span className="text-blue-600 dark:text-blue-400 font-semibold">Taqvim</span>
@@ -578,13 +578,13 @@ export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_c
 
                     {/* Right: Segmented 3-button control (Bor / Yo'q / Kech) */}
                     <div
-                      className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl shrink-0 border border-slate-200/60 dark:border-slate-800"
+                      className="flex items-center gap-0.5 sm:gap-1 bg-slate-100 dark:bg-slate-900 p-0.5 sm:p-1 rounded-xl shrink-0 border border-slate-200/60 dark:border-slate-800"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <button
                         type="button"
                         onClick={(e) => handleSetStatus(e, student.id, 'PRESENT')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-all ${
                           isPresent
                             ? 'bg-emerald-600 text-white shadow-xs'
                             : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
@@ -595,7 +595,7 @@ export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_c
                       <button
                         type="button"
                         onClick={(e) => handleSetStatus(e, student.id, 'ABSENT_UNEXCUSED')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-all ${
                           isAbsent
                             ? 'bg-rose-600 text-white shadow-xs'
                             : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
@@ -606,7 +606,7 @@ export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_c
                       <button
                         type="button"
                         onClick={(e) => handleSetStatus(e, student.id, 'LATE')}
-                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        className={`px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-all ${
                           isLate
                             ? 'bg-amber-600 text-white shadow-xs'
                             : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'

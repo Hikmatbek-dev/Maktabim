@@ -279,17 +279,17 @@ export function TeacherView({ user, selectedDate, schoolId, activeTab = 'teacher
                       : 'border-amber-300 dark:border-amber-900 bg-amber-50/30 dark:bg-amber-950/20 ring-1 ring-amber-500/20'
                   }`}
                 >
-                  <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                     <span className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-black text-slate-500 dark:text-slate-400 tabular-nums shrink-0">
                       {(idx + 1).toString().padStart(2, '0')}
                     </span>
-                    <div className="min-w-0">
-                      <p className={`text-xs sm:text-sm font-extrabold truncate leading-tight ${
+                    <div className="min-w-0 flex-1 pr-1">
+                      <p className={`text-xs sm:text-sm font-extrabold leading-tight break-words ${
                         isAbsent ? 'text-rose-700 dark:text-rose-400' : 'text-slate-900 dark:text-white'
                       }`}>
                         {st.student_name}
                       </p>
-                      <p className="text-[11px] text-slate-400 truncate mt-0.5 font-medium">
+                      <p className="text-[10px] sm:text-[11px] text-slate-400 truncate mt-0.5 font-medium">
                         {st.parent_name || 'Ota-ona'} {st.parent_phone && `(${st.parent_phone})`}
                         {st.reason && <span className="text-amber-600 dark:text-amber-400 font-bold ml-1.5">• {st.reason}</span>}
                       </p>
@@ -297,13 +297,13 @@ export function TeacherView({ user, selectedDate, schoolId, activeTab = 'teacher
                   </div>
 
                   <div
-                    className="flex items-center gap-1.5 shrink-0"
+                    className="flex items-center gap-1 sm:gap-1.5 shrink-0"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <button
                       type="button"
                       onClick={() => handleUpdateStatus(st.student_id, 'PRESENT')}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all ${
                         isPresent
                           ? 'bg-emerald-600 text-white shadow-xs'
                           : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800'
@@ -314,7 +314,7 @@ export function TeacherView({ user, selectedDate, schoolId, activeTab = 'teacher
                     <button
                       type="button"
                       onClick={() => handleUpdateStatus(st.student_id, 'ABSENT_UNEXCUSED')}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all ${
                         isAbsent
                           ? 'bg-rose-600 text-white shadow-xs'
                           : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800'
