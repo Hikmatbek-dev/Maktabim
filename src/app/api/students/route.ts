@@ -103,7 +103,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Ruxsat berilmagan' }, { status: 401 });
     }
 
-    const { id, name, class_id, gender, parent_name, parent_phone } = await req.json();
+    const { id, name, class_id, gender, parent_name, parent_phone, birth_date } = await req.json();
 
     if (!id || !name) {
       return NextResponse.json({ error: 'O‘quvchi ID va ismi kiritilishi shart' }, { status: 400 });
@@ -112,9 +112,9 @@ export async function PUT(req: NextRequest) {
     await query(
       `UPDATE students 
        SET name = $1, class_id = COALESCE($2, class_id), gender = COALESCE($3, gender),
-           parent_name = $4, parent_phone = $5
-       WHERE id = $6`,
-      [name.trim(), class_id || null, gender || null, parent_name || null, parent_phone || null, id]
+           parent_name = $4, parent_phone = $5, birth_date = COALESCE($6, birth_date)
+       WHERE id = $7`,
+      [name.trim(), class_id || null, gender || null, parent_name || null, parent_phone || null, birth_date || null, id]
     );
 
     clearCache();
@@ -129,8 +129,8 @@ export async function PUT(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const user = await getCurrentUser();
-    if (!user || user.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Faqat Super Admin o‘chira oladi' }, { status: 403 });
+    if (!user) {
+      return NextResponse.json({ error: 'Ruxsat berilmagan' }, { status: 401 });
     }
 
     const { searchParams } = new URL(req.url);
@@ -140,9 +140,13 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'ID talab qilinadi' }, { status: 400 });
     }
 
+    // O'quvchi va uning barcha davomat yozuvlarini o'chiramiz
+    await query(`DELETE FROM attendance WHERE student_id = $1`, [id]);
     await query(`DELETE FROM students WHERE id = $1`, [id]);
 
-    return NextResponse.json({ success: true });
+    clearCache();
+
+    return NextResponse.json({ success: true, message: 'O‘quvchi muvaffaqiyatli o‘chirildi' });
   } catch (err: any) {
     console.error('Delete student error:', err);
     return NextResponse.json({ error: 'O‘chirishda xatolik' }, { status: 500 });

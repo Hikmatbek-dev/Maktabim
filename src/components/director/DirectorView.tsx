@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { StudentMonthlyModal } from '../StudentMonthlyModal';
 import { AddStudentModal } from '../AddStudentModal';
+import { EditStudentModal, EditableStudent } from '../EditStudentModal';
 
 interface DirectorViewProps {
   selectedDate: string;
@@ -25,9 +26,10 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
   const [classDetailsLoading, setClassDetailsLoading] = useState(false);
   const [classStudents, setClassStudents] = useState<any[]>([]);
 
-  // O'quvchi qo'shish modali
+  // O'quvchi qo'shish va tahrirlash modallari
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
   const [addStudentTargetClassId, setAddStudentTargetClassId] = useState<string>('');
+  const [editingStudent, setEditingStudent] = useState<EditableStudent | null>(null);
 
   // O'quvchi oylik kalendar modali
   const [selectedStudentForMonthly, setSelectedStudentForMonthly] = useState<any | null>(null);
@@ -211,6 +213,27 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
       console.error(err);
     } finally {
       setClassDetailsLoading(false);
+    }
+  };
+
+  // O'quvchini o'chirish
+  const handleDeleteStudent = async (studentId: string, studentName: string) => {
+    if (!confirm(`Haqiqatan ham "${studentName}" o‘quvchisini va uning barcha davomatini o‘chirmoqchimisiz?`)) return;
+    try {
+      const res = await fetch(`/api/students?id=${studentId}`, { method: 'DELETE' });
+      if (res.ok) {
+        showToast('O‘quvchi muvaffaqiyatli o‘chirildi');
+        fetchAllData();
+        if (selectedClassModal) {
+          handleOpenClassDetails(selectedClassModal);
+        }
+      } else {
+        const d = await res.json();
+        alert(d.error || 'O‘chirishda xatolik yuz berdi');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Server bilan aloqa uzildi');
     }
   };
 
@@ -1114,6 +1137,39 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
                           {isPresent ? 'Bor' : st.status === 'ABSENT_EXCUSED' ? 'Sababli' : isAbsent ? 'Kelmagan' : 'Kechikkan'}
                         </span>
                         <span className="material-symbols-outlined text-slate-400 text-[18px]">calendar_month</span>
+
+                        {/* Tahrirlash tugmasi */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingStudent({
+                              id: st.student_id,
+                              name: st.student_name,
+                              class_id: selectedClassModal.id,
+                              gender: st.gender,
+                              parent_name: st.parent_name,
+                              parent_phone: st.parent_phone,
+                            });
+                          }}
+                          className="p-1 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors"
+                          title="Tahrirlash"
+                        >
+                          <span className="material-symbols-outlined text-[17px]">edit</span>
+                        </button>
+
+                        {/* O'chirish tugmasi */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteStudent(st.student_id, st.student_name);
+                          }}
+                          className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                          title="O‘chirish"
+                        >
+                          <span className="material-symbols-outlined text-[17px]">delete</span>
+                        </button>
                       </div>
                     </div>
                   );
@@ -1224,6 +1280,21 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
         classes={classes.map((c) => ({ id: c.id, name: c.name }))}
         defaultClassId={addStudentTargetClassId}
         schoolId={schoolId}
+      />
+
+      {/* ================= MODAL: O'QUVCHINI TAHRIRLASH ================= */}
+      <EditStudentModal
+        isOpen={!!editingStudent}
+        onClose={() => setEditingStudent(null)}
+        onSuccess={(deleted) => {
+          showToast(deleted ? 'O‘quvchi muvaffaqiyatli o‘chirildi' : 'O‘quvchi ma’lumotlari yangilandi');
+          fetchAllData();
+          if (selectedClassModal) {
+            handleOpenClassDetails(selectedClassModal);
+          }
+        }}
+        student={editingStudent}
+        classes={classes.map((c) => ({ id: c.id, name: c.name }))}
       />
     </div>
   );

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { User, Student, AttendanceStatus } from '@/lib/types';
 import { StudentMonthlyModal } from '../StudentMonthlyModal';
 import { AddStudentModal } from '../AddStudentModal';
+import { EditStudentModal, EditableStudent } from '../EditStudentModal';
 
 interface TeacherViewProps {
   user: User;
@@ -20,8 +21,9 @@ export function TeacherView({ user, selectedDate, schoolId, activeTab = 'teacher
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
-  // O'quvchi qo'shish modali
+  // O'quvchi qo'shish va tahrirlash modallari
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
+  const [editingStudent, setEditingStudent] = useState<EditableStudent | null>(null);
 
   // O'quvchi oylik kalendar modali
   const [selectedStudentForMonthly, setSelectedStudentForMonthly] = useState<any | null>(null);
@@ -149,6 +151,25 @@ export function TeacherView({ user, selectedDate, schoolId, activeTab = 'teacher
     );
     setSelectedStudentForReason(null);
     setCustomNote('');
+  };
+
+  // O'quvchini o'chirish
+  const handleDeleteStudent = async (studentId: string, studentName: string) => {
+    if (!confirm(`Haqiqatan ham "${studentName}" o‘quvchisini va uning barcha davomatini o‘chirmoqchimisiz?`)) return;
+    try {
+      const res = await fetch(`/api/students?id=${studentId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setToast('O‘quvchi muvaffaqiyatli o‘chirildi');
+        setTimeout(() => setToast(null), 3000);
+        loadClassAttendance();
+      } else {
+        const d = await res.json();
+        alert(d.error || 'O‘chirishda xatolik yuz berdi');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Server bilan aloqa uzildi');
+    }
   };
 
   const currentClass = classes.find((c) => c.id === activeClassId) || {
@@ -474,6 +495,33 @@ export function TeacherView({ user, selectedDate, schoolId, activeTab = 'teacher
                     >
                       <span className="material-symbols-outlined text-[18px]">note_add</span>
                     </button>
+
+                    {/* Tahrirlash tugmasi */}
+                    <button
+                      type="button"
+                      onClick={() => setEditingStudent({
+                        id: st.student_id,
+                        name: st.student_name,
+                        class_id: activeClassId,
+                        gender: st.gender,
+                        parent_name: st.parent_name,
+                        parent_phone: st.parent_phone,
+                      })}
+                      className="p-1.5 rounded-xl text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors"
+                      title="O‘quvchini tahrirlash"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">edit</span>
+                    </button>
+
+                    {/* O'chirish tugmasi */}
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteStudent(st.student_id, st.student_name)}
+                      className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                      title="O‘quvchini o‘chirish"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">delete</span>
+                    </button>
                   </div>
                 </div>
               );
@@ -551,6 +599,23 @@ export function TeacherView({ user, selectedDate, schoolId, activeTab = 'teacher
         }
         defaultClassId={activeClassId}
         schoolId={schoolId}
+      />
+
+      {/* ================= MODAL: O'QUVCHINI TAHRIRLASH ================= */}
+      <EditStudentModal
+        isOpen={!!editingStudent}
+        onClose={() => setEditingStudent(null)}
+        onSuccess={(deleted) => {
+          setToast(deleted ? 'O‘quvchi muvaffaqiyatli o‘chirildi' : 'O‘quvchi ma’lumotlari yangilandi');
+          setTimeout(() => setToast(null), 3000);
+          loadClassAttendance();
+        }}
+        student={editingStudent}
+        classes={
+          classes.length > 0
+            ? classes.filter((c) => c.id === activeClassId).map((c) => ({ id: c.id, name: c.name }))
+            : [{ id: activeClassId, name: currentClass.name || 'Sinf' }]
+        }
       />
     </div>
   );

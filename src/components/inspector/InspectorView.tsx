@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { SchoolClass, Student, AttendanceStatus } from '@/lib/types';
 import { StudentMonthlyModal } from '../StudentMonthlyModal';
 import { AddStudentModal } from '../AddStudentModal';
+import { EditStudentModal, EditableStudent } from '../EditStudentModal';
 
 interface InspectorViewProps {
   selectedDate: string;
@@ -25,8 +26,9 @@ export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_c
   const [filterMode, setFilterMode] = useState<'ALL' | 'PRESENT' | 'ABSENT' | 'EXCUSED' | 'LATE'>('ALL');
   const [studentsLoading, setStudentsLoading] = useState(false);
 
-  // O'quvchi qo'shish modali
+  // O'quvchi qo'shish va tahrirlash modallari
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
+  const [editingStudent, setEditingStudent] = useState<EditableStudent | null>(null);
 
   // O'quvchi ustiga bosilganda oylik taqvim modali
   const [selectedStudentForMonthly, setSelectedStudentForMonthly] = useState<any | null>(null);
@@ -154,6 +156,28 @@ export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_c
       loadClassAttendance(activeClassId);
     }
   }, [activeClassId, selectedDate]);
+
+  // O'quvchini o'chirish
+  const handleDeleteStudent = async (studentId: string, studentName: string) => {
+    if (!confirm(`Haqiqatan ham "${studentName}" o‘quvchisini va uning barcha davomatini o‘chirmoqchimisiz?`)) return;
+    try {
+      const res = await fetch(`/api/students?id=${studentId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setSuccessToast('O‘quvchi muvaffaqiyatli o‘chirildi');
+        setTimeout(() => setSuccessToast(null), 3000);
+        loadClasses();
+        if (activeClassId) {
+          loadClassAttendance(activeClassId);
+        }
+      } else {
+        const d = await res.json();
+        alert(d.error || 'O‘chirishda xatolik yuz berdi');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Server bilan aloqa uzildi');
+    }
+  };
 
   // To'g'ridan-to'g'ri holatni o'rnatish
   const handleSetStatus = (e: React.MouseEvent, studentId: string, status: AttendanceStatus) => {
@@ -788,6 +812,36 @@ export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_c
                         Kech
                       </button>
                     </div>
+
+                    {/* Edit / Delete actions */}
+                    <div
+                      className="flex items-center gap-0.5 shrink-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setEditingStudent({
+                          id: student.id,
+                          name: student.name,
+                          class_id: student.class_id || activeClassId,
+                          gender: student.gender,
+                          parent_name: student.parent_name,
+                          parent_phone: student.parent_phone,
+                        })}
+                        className="p-1 sm:p-1.5 rounded-xl text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors"
+                        title="O‘quvchini tahrirlash"
+                      >
+                        <span className="material-symbols-outlined text-[17px] sm:text-[18px]">edit</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteStudent(student.id, student.name)}
+                        className="p-1 sm:p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                        title="O‘quvchini o‘chirish"
+                      >
+                        <span className="material-symbols-outlined text-[17px] sm:text-[18px]">delete</span>
+                      </button>
+                    </div>
                   </div>
                 );
               })
@@ -844,6 +898,22 @@ export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_c
         classes={classes.map((c) => ({ id: c.id, name: c.name }))}
         defaultClassId={activeClassId}
         schoolId={schoolId}
+      />
+
+      {/* ================= MODAL: O'QUVCHINI TAHRIRLASH ================= */}
+      <EditStudentModal
+        isOpen={!!editingStudent}
+        onClose={() => setEditingStudent(null)}
+        onSuccess={(deleted) => {
+          setSuccessToast(deleted ? 'O‘quvchi muvaffaqiyatli o‘chirildi' : 'O‘quvchi ma’lumotlari yangilandi');
+          setTimeout(() => setSuccessToast(null), 3000);
+          loadClasses();
+          if (activeClassId) {
+            loadClassAttendance(activeClassId);
+          }
+        }}
+        student={editingStudent}
+        classes={classes.map((c) => ({ id: c.id, name: c.name }))}
       />
 
       {/* ================= MODAL: SABABLI DARS QOLDIRISH ================= */}
