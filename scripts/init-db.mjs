@@ -90,7 +90,7 @@ async function run() {
 
     const users = [
       { id: 'usr_admin', name: 'Alisher Qodirov (Admin)', username: 'admin', pw: 'admin123', role: 'SUPER_ADMIN', phone: '+998901234567', school_id: null },
-      { id: 'usr_dir', name: 'Botir Rahimov (Direktor)', username: 'direktor', pw: 'direktor123', role: 'DIRECTOR', phone: '+998901112233', school_id: 'sch_1' },
+      { id: 'usr_dir', name: 'Saodat Sharipov', username: 'direktor', pw: 'direktor123', role: 'DIRECTOR', phone: '+998901112233', school_id: 'sch_1' },
       { id: 'usr_zam', name: 'Nodira Salimova (Zamdirektor)', username: 'zamdirektor', pw: 'zam123', role: 'DEPUTY_DIRECTOR', phone: '+998902223344', school_id: 'sch_1' },
       { id: 'usr_davomat', name: 'Javohir Toirov (Davomatchi)', username: 'davomatchi', pw: 'davomat123', role: 'INSPECTOR', phone: '+998903334455', school_id: 'sch_1' },
       { id: 'usr_ustoz_5a', name: 'Gulnoza Karimova (5-A)', username: 'ustoz', pw: 'ustoz123', role: 'TEACHER', phone: '+998904445566', school_id: 'sch_1' },

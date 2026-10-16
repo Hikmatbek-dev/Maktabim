@@ -58,15 +58,17 @@ export async function GET(req: NextRequest) {
       query(`SELECT COUNT(*)::int as count FROM attendance_submissions WHERE date = $1 AND school_id = $2`, [date, schoolId]),
       query(
         `SELECT 
-          s.id, s.name, s.parent_phone, c.name as class_name,
-          COUNT(a.id)::int as unexcused_days
+          s.id, s.name, s.class_id, s.parent_phone, c.name as class_name,
+          COUNT(a.id)::int as unexcused_days,
+          (COUNT(a.id)::int * 6) as missed_hours
          FROM attendance a
          JOIN students s ON s.id = a.student_id
          JOIN classes c ON c.id = s.class_id
          WHERE a.status = 'ABSENT_UNEXCUSED' AND a.school_id = $1
-         GROUP BY s.id, s.name, s.parent_phone, c.name
-         ORDER BY unexcused_days DESC
-         LIMIT 5`,
+         GROUP BY s.id, s.name, s.class_id, s.parent_phone, c.name
+         HAVING (COUNT(a.id)::int * 6) >= 36 OR COUNT(a.id)::int >= 6
+         ORDER BY missed_hours DESC, unexcused_days DESC
+         LIMIT 20`,
         [schoolId]
       )
     ]);

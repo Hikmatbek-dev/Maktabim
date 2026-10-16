@@ -32,6 +32,12 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
   // O'quvchi oylik kalendar modali
   const [selectedStudentForMonthly, setSelectedStudentForMonthly] = useState<any | null>(null);
 
+  // Sababli kiritish modali
+  const [selectedStudentForReason, setSelectedStudentForReason] = useState<any | null>(null);
+  const [reasonType, setReasonType] = useState<string>('Kasallik (spravka bor)');
+  const [customNote, setCustomNote] = useState<string>('');
+  const [reasonSaving, setReasonSaving] = useState(false);
+
   // Xodim qo'shish modali holati
   const [isAddStaffModalOpen, setIsAddStaffModalOpen] = useState(false);
   const [newStaffName, setNewStaffName] = useState('');
@@ -43,6 +49,49 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
   const [staffSaving, setStaffSaving] = useState(false);
   const [staffError, setStaffError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // O'quvchi davomat holatini saqlash (Sababli, Bor, Sababsiz, Kechikkan)
+  const handleSaveStudentStatus = async (studentId: string, status: string, reasonText?: string) => {
+    if (!selectedClassModal) return;
+    try {
+      const res = await fetch('/api/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          class_id: selectedClassModal.id,
+          date: selectedDate,
+          records: [
+            {
+              student_id: studentId,
+              status,
+              reason: reasonText || null,
+            },
+          ],
+        }),
+      });
+      if (res.ok) {
+        showToast('Davomat holati saqlandi');
+        handleOpenClassDetails(selectedClassModal);
+        fetchAllData();
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Xatolik yuz berdi');
+    }
+  };
+
+  const handleSaveReasonModal = async () => {
+    if (!selectedStudentForReason) return;
+    setReasonSaving(true);
+    await handleSaveStudentStatus(
+      selectedStudentForReason.student_id,
+      'ABSENT_EXCUSED',
+      `${reasonType}: ${customNote}`
+    );
+    setReasonSaving(false);
+    setSelectedStudentForReason(null);
+    setCustomNote('');
+  };
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -474,21 +523,21 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/80">
                   <div className="flex items-center gap-2">
                     <span className="material-symbols-outlined text-rose-600 text-[22px]">warning</span>
-                    <h2 className="text-base font-extrabold text-slate-900 dark:text-white">Xavf Guruhi</h2>
+                    <h2 className="text-base font-extrabold text-slate-900 dark:text-white">Xavf Guruhi (36+ soat)</h2>
                   </div>
                   <span className="px-2.5 py-0.5 bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900 rounded-full text-[11px] font-extrabold">
                     {riskStudents.length} nafar o‘quvchi
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 mb-3">
-                  Surunkali dars qoldirayotgan o‘quvchilar nazorati:
+                  Jami 36 ta dars va undan ko‘p sababsiz dars qoldirgan o‘quvchilar:
                 </p>
 
                 <div className="space-y-2.5">
                   {riskStudents.length === 0 ? (
                     <div className="py-8 text-center bg-slate-50/50 dark:bg-slate-900/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
                       <span className="material-symbols-outlined text-[28px] text-emerald-500">check_circle</span>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-bold">Xavf guruhida o‘quvchilar yo‘q</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-bold">36+ soat qoldirgan o‘quvchilar yo‘q</p>
                       <p className="text-[11px] text-slate-400 mt-0.5">Surunkali dars qoldirganlar aniqlanmadi</p>
                     </div>
                   ) : (
@@ -510,8 +559,8 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
                               <span className="px-1.5 py-0.5 bg-blue-50 dark:bg-blue-950/50 rounded-md text-[10px] text-blue-700 dark:text-blue-300 font-bold">
                                 {st.class_name}
                               </span>
-                              <span className="text-[11px] text-rose-600 dark:text-rose-400 font-bold">
-                                {st.unexcused_days} kun sababsiz
+                              <span className="px-1.5 py-0.5 bg-rose-100 dark:bg-rose-950/80 text-[11px] text-rose-700 dark:text-rose-300 font-extrabold rounded-md">
+                                {st.missed_hours || (st.unexcused_days * 6)} soat ({st.unexcused_days} kun)
                               </span>
                             </div>
                           </div>
@@ -1034,16 +1083,35 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
                       </div>
 
                       <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedStudentForReason(st);
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold flex items-center gap-1 transition-all ${
+                            st.status === 'ABSENT_EXCUSED'
+                              ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 ring-2 ring-amber-500/30'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40'
+                          }`}
+                          title="Sababli deb belgilash"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">edit_note</span>
+                          <span>Sababli</span>
+                        </button>
+
                         <span
                           className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold ${
                             isPresent
                               ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
+                              : st.status === 'ABSENT_EXCUSED'
+                              ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300'
                               : isAbsent
                               ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300'
-                              : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300'
+                              : 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300'
                           }`}
                         >
-                          {isPresent ? 'Bor' : isAbsent ? 'Kelmagan' : 'Kechikkan'}
+                          {isPresent ? 'Bor' : st.status === 'ABSENT_EXCUSED' ? 'Sababli' : isAbsent ? 'Kelmagan' : 'Kechikkan'}
                         </span>
                         <span className="material-symbols-outlined text-slate-400 text-[18px]">calendar_month</span>
                       </div>
@@ -1055,6 +1123,79 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
 
             <div className="pt-3 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-400 text-center">
               O‘quvchi ustiga bosib, uning oylik davomat taqvimini ko‘rishingiz mumkin
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL: DIREKTOR SABABLI BELGILASH ================= */}
+      {selectedStudentForReason && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md bg-white dark:bg-[#0c121e] rounded-3xl border border-slate-200/80 dark:border-slate-800 p-5 sm:p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-amber-500 text-[22px]">medical_services</span>
+                <h3 className="font-extrabold text-base text-slate-900 dark:text-white">
+                  Sababli deb belgilash
+                </h3>
+              </div>
+              <button
+                onClick={() => setSelectedStudentForReason(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              O‘quvchi: <strong className="text-slate-900 dark:text-white">{selectedStudentForReason.student_name}</strong>
+            </p>
+
+            <div>
+              <label className="block text-[11px] font-extrabold text-slate-500 uppercase mb-1">
+                Sabab turi *
+              </label>
+              <select
+                value={reasonType}
+                onChange={(e) => setReasonType(e.target.value)}
+                className="w-full p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-amber-500"
+              >
+                <option value="Kasallik (spravka bor)">Kasallik (spravka bor)</option>
+                <option value="Oilaviy sabab">Oilaviy sabab</option>
+                <option value="Musobaqa yoki olimpiada">Musobaqa yoki olimpiada</option>
+                <option value="Boshqa uzrli sabab">Boshqa uzrli sabab</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-extrabold text-slate-500 uppercase mb-1">
+                Qo‘shimcha izoh
+              </label>
+              <textarea
+                placeholder="Masalan: 3 kunlik tibbiy maʼlumotnoma taqdim etildi..."
+                value={customNote}
+                onChange={(e) => setCustomNote(e.target.value)}
+                className="w-full p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white resize-none h-20 outline-none focus:border-amber-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setSelectedStudentForReason(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                Bekor qilish
+              </button>
+              <button
+                type="button"
+                disabled={reasonSaving}
+                onClick={handleSaveReasonModal}
+                className="px-5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/25 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1.5"
+              >
+                <span className="material-symbols-outlined text-[16px]">check</span>
+                <span>{reasonSaving ? 'Saqlanmoqda...' : 'Sababli saqlash'}</span>
+              </button>
             </div>
           </div>
         </div>

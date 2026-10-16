@@ -31,6 +31,25 @@ export function TeacherView({ user, selectedDate, schoolId, activeTab = 'teacher
   const [reasonType, setReasonType] = useState<string>('Kasallik (spravka bor)');
   const [customNote, setCustomNote] = useState<string>('');
 
+  // 36+ soat dars qoldirgan xavf guruhi o'quvchilari
+  const [riskStudents, setRiskStudents] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const schoolParam = schoolId ? `&school_id=${schoolId}` : '';
+        const res = await fetch(`/api/stats?date=${selectedDate}${schoolParam}`);
+        const data = await res.json();
+        if (data.risk_students) {
+          setRiskStudents(data.risk_students);
+        }
+      } catch (err) {
+        console.error('Error fetching risk students for teacher:', err);
+      }
+    };
+    fetchStats();
+  }, [selectedDate, schoolId]);
+
   // Sinflarni yuklash
   useEffect(() => {
     const fetchClasses = async () => {
@@ -145,6 +164,10 @@ export function TeacherView({ user, selectedDate, schoolId, activeTab = 'teacher
   const totalCount = students.length;
   const attendanceRate = totalCount > 0 ? Math.round(((presentCount + lateCount) / totalCount) * 100) : 0;
 
+  const classRiskStudents = riskStudents.filter(
+    (st) => st.class_id === activeClassId || st.class_name === currentClass?.name
+  );
+
   return (
     <div className="max-w-4xl mx-auto px-2 sm:px-4 py-3 pb-24 space-y-4 font-sans">
       {/* Toast Notification */}
@@ -164,7 +187,7 @@ export function TeacherView({ user, selectedDate, schoolId, activeTab = 'teacher
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                {currentClass?.name || '5-A'} Sinf Jurnali
+                {currentClass?.name || '5-A'} {activeTab === 'teacher_monitor' ? 'Statistikasi' : 'Sinf Jurnali'}
               </h1>
               <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-[11px] font-extrabold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
                 <span className="material-symbols-outlined text-[14px]">lock</span>
@@ -181,16 +204,18 @@ export function TeacherView({ user, selectedDate, schoolId, activeTab = 'teacher
         </div>
 
         {/* Tezkor "Barchasi bor" tugmasi */}
-        <button
-          type="button"
-          onClick={() => {
-            setStudents((prev) => prev.map((s) => ({ ...s, status: 'PRESENT' })));
-          }}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 active:scale-95 transition-all self-start sm:self-auto shadow-2xs"
-        >
-          <span className="material-symbols-outlined text-[18px]">done_all</span>
-          <span>Barchasi Bor</span>
-        </button>
+        {activeTab !== 'teacher_monitor' && (
+          <button
+            type="button"
+            onClick={() => {
+              setStudents((prev) => prev.map((s) => ({ ...s, status: 'PRESENT' })));
+            }}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 active:scale-95 transition-all self-start sm:self-auto shadow-2xs"
+          >
+            <span className="material-symbols-outlined text-[18px]">done_all</span>
+            <span>Barchasi Bor</span>
+          </button>
+        )}
       </div>
 
       {/* ================= SINF MONITORINGI (USTOZ UCHUN KPI) ================= */}
@@ -216,6 +241,105 @@ export function TeacherView({ user, selectedDate, schoolId, activeTab = 'teacher
           <div className="text-2xl sm:text-3xl font-black text-blue-600 dark:text-blue-400 mt-1 tabular-nums">{attendanceRate}%</div>
         </div>
       </div>
+
+      {/* ================= MONITORING TAB: XAVF GURUHI (36+ SOAT) ================= */}
+      {activeTab === 'teacher_monitor' && (
+        <div className="space-y-4">
+          <div className="bg-white dark:bg-[#0c121e] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs p-5 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-rose-600 text-[22px]">warning</span>
+                <div>
+                  <h3 className="font-extrabold text-base text-slate-900 dark:text-white">
+                    Xavf Guruhi (36+ soat dars qoldirganlar)
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Jami 36 ta dars (6+ kun) va undan ko‘p sababsiz dars qoldirgan o‘quvchilar
+                  </p>
+                </div>
+              </div>
+              <span className="px-2.5 py-0.5 bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900 rounded-full text-[11px] font-extrabold">
+                {classRiskStudents.length > 0 ? `${classRiskStudents.length} nafar sinfda` : `${riskStudents.length} nafar maktabda`}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {(classRiskStudents.length > 0 ? classRiskStudents : riskStudents).length === 0 ? (
+                <div className="col-span-full py-8 text-center bg-slate-50/50 dark:bg-slate-900/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                  <span className="material-symbols-outlined text-[28px] text-emerald-500">check_circle</span>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-bold">36+ soat qoldirgan o‘quvchilar yo‘q</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Sinfingizda surunkali dars qoldirgan o‘quvchi aniqlanmadi</p>
+                </div>
+              ) : (
+                (classRiskStudents.length > 0 ? classRiskStudents : riskStudents).map((st: any, i: number) => (
+                  <div
+                    key={i}
+                    onClick={() => setSelectedStudentForMonthly({ id: st.id, name: st.name, class_name: st.class_name })}
+                    className="p-3.5 bg-slate-50/80 dark:bg-slate-900/70 rounded-2xl border border-slate-200/80 dark:border-slate-800 hover:border-blue-500 transition-all flex items-center justify-between gap-3 cursor-pointer group shadow-2xs"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-950/60 flex items-center justify-center text-rose-600 dark:text-rose-400 font-extrabold text-xs shrink-0 ring-2 ring-rose-50 dark:ring-rose-900/30">
+                        {st.name.charAt(0)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs sm:text-[13px] font-extrabold text-slate-900 dark:text-white leading-tight truncate group-hover:text-blue-600 transition-colors">
+                          {st.name}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="px-1.5 py-0.5 bg-blue-50 dark:bg-blue-950/50 rounded-md text-[10px] text-blue-700 dark:text-blue-300 font-bold">
+                            {st.class_name}
+                          </span>
+                          <span className="px-1.5 py-0.5 bg-rose-100 dark:bg-rose-950/80 text-[11px] text-rose-700 dark:text-rose-300 font-extrabold rounded-md">
+                            {st.missed_hours || (st.unexcused_days * 6)} soat ({st.unexcused_days} kun)
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {st.parent_phone && (
+                        <a
+                          href={`tel:${st.parent_phone}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="p-2 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 rounded-xl border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 active:scale-95 transition-all"
+                          title="Ota-onasiga qo‘ng‘iroq qilish"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">call</span>
+                        </a>
+                      )}
+                      <span className="material-symbols-outlined text-slate-400 text-[18px] group-hover:text-blue-600 transition-colors">
+                        calendar_month
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= ATTENDANCE TAB: AGAR SINFDA 36+ SOAT QOLDIRGANLAR BO'LSA OGOHLANTIRISH ================= */}
+      {activeTab === 'teacher_attendance' && classRiskStudents.length > 0 && (
+        <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-900 rounded-3xl p-4 flex items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+              <span className="material-symbols-outlined text-[22px]">warning</span>
+            </div>
+            <div>
+              <h4 className="text-xs sm:text-sm font-black text-rose-900 dark:text-rose-200">
+                Xavf Guruhi Ogohlantirishi: Sinfingizda 36+ soat dars qoldirgan {classRiskStudents.length} nafar o‘quvchi mavjud!
+              </h4>
+              <p className="text-[11px] text-rose-700 dark:text-rose-400 mt-0.5">
+                Ushbu o‘quvchilar ro‘yxatda maxsus qizil nishon bilan belgilangan.
+              </p>
+            </div>
+          </div>
+          <span className="px-3 py-1 bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300 font-extrabold text-xs rounded-xl border border-rose-300 dark:border-rose-800 shrink-0">
+            36+ soat
+          </span>
+        </div>
+      )}
 
       {/* ================= O'QUVCHILAR RO'YXATI VA DAVOMAT QILISH ================= */}
       <div className="bg-white dark:bg-[#0c121e] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs p-5 space-y-4">
@@ -260,6 +384,8 @@ export function TeacherView({ user, selectedDate, schoolId, activeTab = 'teacher
               const isPresent = st.status === 'PRESENT';
               const isAbsent = st.status === 'ABSENT_UNEXCUSED' || st.status === 'ABSENT_EXCUSED';
               const isLate = st.status === 'LATE';
+              const isRiskStudent = riskStudents.some((rs) => rs.id === st.student_id);
+              const riskInfo = riskStudents.find((rs) => rs.id === st.student_id);
 
               return (
                 <div
@@ -284,11 +410,18 @@ export function TeacherView({ user, selectedDate, schoolId, activeTab = 'teacher
                       {(idx + 1).toString().padStart(2, '0')}
                     </span>
                     <div className="min-w-0 flex-1 pr-1">
-                      <p className={`text-xs sm:text-sm font-extrabold leading-tight break-words ${
-                        isAbsent ? 'text-rose-700 dark:text-rose-400' : 'text-slate-900 dark:text-white'
-                      }`}>
-                        {st.student_name}
-                      </p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className={`text-xs sm:text-sm font-extrabold leading-tight break-words ${
+                          isAbsent ? 'text-rose-700 dark:text-rose-400' : 'text-slate-900 dark:text-white'
+                        }`}>
+                          {st.student_name}
+                        </p>
+                        {isRiskStudent && (
+                          <span className="px-1.5 py-0.5 bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 text-[10px] font-black rounded-md border border-rose-300 dark:border-rose-800 shrink-0">
+                            ⚠️ {riskInfo?.missed_hours || (riskInfo?.unexcused_days * 6) || 36}+ soat
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[10px] sm:text-[11px] text-slate-400 truncate mt-0.5 font-medium">
                         {st.parent_name || 'Ota-ona'} {st.parent_phone && `(${st.parent_phone})`}
                         {st.reason && <span className="text-amber-600 dark:text-amber-400 font-bold ml-1.5">• {st.reason}</span>}
