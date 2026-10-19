@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { StudentMonthlyModal } from '../StudentMonthlyModal';
 import { AddStudentModal } from '../AddStudentModal';
 import { EditStudentModal, EditableStudent } from '../EditStudentModal';
+import { AnalyticsDashboard } from '../analytics/AnalyticsDashboard';
 
 interface DirectorViewProps {
   selectedDate: string;
@@ -367,11 +368,21 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
         </div>
       </section>
 
-      {/* ================= SECTION 1: KUNLIK XULOSA (KPI CARDS & SUMMARY) ================= */}
+      {/* ================= ANALYTICS DASHBOARD (KUNLIK, HAFTALIK, OYLIK, YILLIK & REYTING) ================= */}
       {(activeTab === 'director_summary' || activeTab === 'attendance_reports') && (
+        <AnalyticsDashboard
+          role="DIRECTOR"
+          selectedDate={selectedDate}
+          schoolId={schoolId}
+          classes={classes}
+          onSelectStudentMonthly={setSelectedStudentForMonthly}
+        />
+      )}
+
+      {/* ================= SECTION 1: KUNLIK QISQACHA XULOSA ================= */}
+      {false && (
         <>
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* KPI 1: Umumiy Davomat */}
             <div className="bg-white dark:bg-[#0c121e] p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-all">
               <div className="flex items-start justify-between">
                 <div>

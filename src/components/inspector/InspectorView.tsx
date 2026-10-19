@@ -5,6 +5,7 @@ import { SchoolClass, Student, AttendanceStatus } from '@/lib/types';
 import { StudentMonthlyModal } from '../StudentMonthlyModal';
 import { AddStudentModal } from '../AddStudentModal';
 import { EditStudentModal, EditableStudent } from '../EditStudentModal';
+import { AnalyticsDashboard } from '../analytics/AnalyticsDashboard';
 
 interface InspectorViewProps {
   selectedDate: string;
@@ -277,9 +278,17 @@ export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_c
         </div>
       )}
 
-      {/* ================= 1. QISQACHA MONITORING (DAVOMATCHI UCHUN) ================= */}
+      {/* ================= 1. MONITORING & ANALITIKA (DAVOMATCHI UCHUN) ================= */}
       {activeTab === 'inspector_monitor' && (
-        <div className="space-y-4">
+        <div className="space-y-6">
+          <AnalyticsDashboard
+            role="INSPECTOR"
+            selectedDate={selectedDate}
+            schoolId={schoolId}
+            classes={classes}
+            onSelectStudentMonthly={setSelectedStudentForMonthly}
+          />
+
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-white dark:bg-[#0c121e] p-4 sm:p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs text-center">
               <span className="text-[11px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">

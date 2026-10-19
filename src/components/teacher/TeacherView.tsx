@@ -5,6 +5,7 @@ import { User, Student, AttendanceStatus } from '@/lib/types';
 import { StudentMonthlyModal } from '../StudentMonthlyModal';
 import { AddStudentModal } from '../AddStudentModal';
 import { EditStudentModal, EditableStudent } from '../EditStudentModal';
+import { AnalyticsDashboard } from '../analytics/AnalyticsDashboard';
 
 interface TeacherViewProps {
   user: User;
@@ -263,9 +264,19 @@ export function TeacherView({ user, selectedDate, schoolId, activeTab = 'teacher
         </div>
       </div>
 
-      {/* ================= MONITORING TAB: XAVF GURUHI (36+ SOAT) ================= */}
+      {/* ================= MONITORING TAB: ANALITIKA & GRAFIKLAR ================= */}
       {activeTab === 'teacher_monitor' && (
-        <div className="space-y-4">
+        <div className="space-y-6">
+          <AnalyticsDashboard
+            role="TEACHER"
+            selectedDate={selectedDate}
+            schoolId={schoolId}
+            classId={activeClassId}
+            className={currentClass?.name}
+            classes={classes}
+            onSelectStudentMonthly={setSelectedStudentForMonthly}
+          />
+
           <div className="bg-white dark:bg-[#0c121e] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs p-5 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
