@@ -1051,25 +1051,25 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
 
       {/* ================= MODAL: SINF TAFSILOTLARI VA O'QUVCHILAR RO'YXATI ================= */}
       {selectedClassModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-sm">
-          <div className="w-full max-w-2xl bg-white dark:bg-[#0c121e] rounded-3xl border border-slate-200/80 dark:border-slate-800 p-5 sm:p-6 shadow-2xl max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
-              <div>
-                <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-950/60 backdrop-blur-sm">
+          <div className="w-full max-w-2xl bg-white dark:bg-[#0c121e] rounded-3xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-6 shadow-2xl max-h-[90vh] flex flex-col">
+            <div className="flex items-start sm:items-center justify-between pb-3 sm:pb-4 border-b border-slate-100 dark:border-slate-800 gap-2">
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white truncate">
                   {selectedClassModal.name} Davomat Tafsiloti
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
                   Sinf rahbari: {selectedClassModal.teacher_name || 'Yo‘q'} • Sana: {selectedDate}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => {
                     setAddStudentTargetClassId(selectedClassModal.id);
                     setIsAddStudentOpen(true);
                   }}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm active:scale-95 transition-all"
+                  className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm active:scale-95 transition-all whitespace-nowrap"
                 >
                   <span className="material-symbols-outlined text-[16px]">person_add</span>
                   <span>+ O‘quvchi qo‘shish</span>
@@ -1083,7 +1083,7 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto py-3 space-y-2 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto py-3 space-y-2.5 custom-scrollbar">
               {classDetailsLoading ? (
                 <div className="text-center py-10 text-slate-400 text-xs font-semibold">Yuklanmoqda...</div>
               ) : classStudents.length === 0 ? (
@@ -1104,38 +1104,31 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
                           class_name: selectedClassModal.name,
                         })
                       }
-                      className="p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 hover:border-blue-500 transition-all flex items-center justify-between gap-2 cursor-pointer shadow-2xs"
+                      className="p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 hover:border-blue-500 transition-all cursor-pointer shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3"
                     >
+                      {/* Chap / Yuqori: Raqam + F.I.Sh + Ota-ona ma'lumotlari */}
                       <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-                        <span className="text-xs font-extrabold text-slate-400 w-5 tabular-nums shrink-0">
+                        <span className="w-7 h-7 rounded-xl bg-slate-200/70 dark:bg-slate-800 text-xs font-black text-slate-500 dark:text-slate-400 flex items-center justify-center tabular-nums shrink-0">
                           {(idx + 1).toString().padStart(2, '0')}
                         </span>
-                        <div className="min-w-0 flex-1 pr-1">
-                          <p className="text-xs sm:text-[13px] font-extrabold text-slate-900 dark:text-white leading-tight break-words">{st.student_name}</p>
-                          <span className="text-[10px] sm:text-[11px] text-slate-400">{st.parent_name || 'Ota-ona'}</span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs sm:text-[13px] font-extrabold text-slate-900 dark:text-white leading-snug">
+                            {st.student_name}
+                          </p>
+                          <span className="text-[10px] sm:text-[11px] text-slate-400 block mt-0.5 font-medium truncate">
+                            {st.parent_name || 'Ota-ona'} {st.parent_phone && `• ${st.parent_phone}`}
+                          </span>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedStudentForReason(st);
-                          }}
-                          className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold flex items-center gap-1 transition-all ${
-                            st.status === 'ABSENT_EXCUSED'
-                              ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 ring-2 ring-amber-500/30'
-                              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40'
-                          }`}
-                          title="Sababli deb belgilash"
-                        >
-                          <span className="material-symbols-outlined text-[14px]">edit_note</span>
-                          <span>Sababli</span>
-                        </button>
-
+                      {/* O'ng / Pastki: Davomat holati va Amallar (Tahrirlash, O'chirish, Sabab, Taqvim) */}
+                      <div
+                        className="flex items-center justify-between sm:justify-end gap-1.5 sm:gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200/50 dark:border-slate-800/60 shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {/* Holat nishoni (Bor, Sababli, Kelmagan, Kechikkan) */}
                         <span
-                          className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold ${
+                          className={`px-2.5 py-1 rounded-xl text-[11px] font-extrabold ${
                             isPresent
                               ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
                               : st.status === 'ABSENT_EXCUSED'
@@ -1147,40 +1140,76 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
                         >
                           {isPresent ? 'Bor' : st.status === 'ABSENT_EXCUSED' ? 'Sababli' : isAbsent ? 'Kelmagan' : 'Kechikkan'}
                         </span>
-                        <span className="material-symbols-outlined text-slate-400 text-[18px]">calendar_month</span>
 
-                        {/* Tahrirlash tugmasi */}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingStudent({
-                              id: st.student_id,
-                              name: st.student_name,
-                              class_id: selectedClassModal.id,
-                              gender: st.gender,
-                              parent_name: st.parent_name,
-                              parent_phone: st.parent_phone,
-                            });
-                          }}
-                          className="p-1 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors"
-                          title="Tahrirlash"
-                        >
-                          <span className="material-symbols-outlined text-[17px]">edit</span>
-                        </button>
+                        <div className="flex items-center gap-1 sm:gap-1.5">
+                          {/* Sababli tugmasi */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedStudentForReason(st);
+                            }}
+                            className={`px-2 py-1 rounded-xl text-[11px] font-extrabold flex items-center gap-1 transition-all ${
+                              st.status === 'ABSENT_EXCUSED'
+                                ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 ring-2 ring-amber-500/30'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40'
+                            }`}
+                            title="Sababli deb belgilash"
+                          >
+                            <span className="material-symbols-outlined text-[15px]">edit_note</span>
+                            <span>Sababli</span>
+                          </button>
 
-                        {/* O'chirish tugmasi */}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteStudent(st.student_id, st.student_name);
-                          }}
-                          className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-                          title="O‘chirish"
-                        >
-                          <span className="material-symbols-outlined text-[17px]">delete</span>
-                        </button>
+                          {/* Taqvim tugmasi */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedStudentForMonthly({
+                                id: st.student_id,
+                                name: st.student_name,
+                                class_name: selectedClassModal.name,
+                              });
+                            }}
+                            className="p-1.5 rounded-xl text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors"
+                            title="Oylik davomat taqvimi"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">calendar_month</span>
+                          </button>
+
+                          {/* Tahrirlash tugmasi */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingStudent({
+                                id: st.student_id,
+                                name: st.student_name,
+                                class_id: selectedClassModal.id,
+                                gender: st.gender,
+                                parent_name: st.parent_name,
+                                parent_phone: st.parent_phone,
+                              });
+                            }}
+                            className="p-1.5 rounded-xl text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors"
+                            title="Tahrirlash"
+                          >
+                            <span className="material-symbols-outlined text-[17px]">edit</span>
+                          </button>
+
+                          {/* O'chirish tugmasi */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteStudent(st.student_id, st.student_name);
+                            }}
+                            className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                            title="O‘chirish"
+                          >
+                            <span className="material-symbols-outlined text-[17px]">delete</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );

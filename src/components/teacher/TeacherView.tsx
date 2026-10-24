@@ -429,7 +429,7 @@ export function TeacherView({ user, selectedDate, schoolId, activeTab = 'teacher
                       class_name: currentClass?.name,
                     })
                   }
-                  className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 cursor-pointer shadow-2xs ${
+                  className={`p-3 sm:p-3.5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 cursor-pointer shadow-2xs ${
                     isPresent
                       ? 'border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 hover:border-blue-500'
                       : isAbsent
@@ -437,13 +437,13 @@ export function TeacherView({ user, selectedDate, schoolId, activeTab = 'teacher
                       : 'border-amber-300 dark:border-amber-900 bg-amber-50/30 dark:bg-amber-950/20 ring-1 ring-amber-500/20'
                   }`}
                 >
-                  <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                  <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
                     <span className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-black text-slate-500 dark:text-slate-400 tabular-nums shrink-0">
                       {(idx + 1).toString().padStart(2, '0')}
                     </span>
-                    <div className="min-w-0 flex-1 pr-1">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <p className={`text-xs sm:text-sm font-extrabold leading-tight break-words ${
+                        <p className={`text-xs sm:text-sm font-extrabold leading-snug ${
                           isAbsent ? 'text-rose-700 dark:text-rose-400' : 'text-slate-900 dark:text-white'
                         }`}>
                           {st.student_name}
@@ -462,7 +462,7 @@ export function TeacherView({ user, selectedDate, schoolId, activeTab = 'teacher
                   </div>
 
                   <div
-                    className="flex items-center gap-1 sm:gap-1.5 shrink-0"
+                    className="flex items-center justify-between sm:justify-end gap-1 sm:gap-1.5 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200/50 dark:border-slate-800/60 shrink-0"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <button

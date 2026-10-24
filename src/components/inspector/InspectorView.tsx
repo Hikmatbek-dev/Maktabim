@@ -702,7 +702,7 @@ export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_c
                         class_name: activeClass?.name,
                       })
                     }
-                    className={`bg-white dark:bg-[#0c121e] rounded-2xl border p-3 flex items-center justify-between gap-3 transition-all cursor-pointer select-none shadow-2xs hover:shadow-xs ${
+                    className={`bg-white dark:bg-[#0c121e] rounded-2xl border p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 transition-all cursor-pointer select-none shadow-2xs hover:shadow-xs ${
                       isPresent
                         ? 'border-slate-200/80 dark:border-slate-800 hover:border-blue-500'
                         : isUnexcused
@@ -713,7 +713,7 @@ export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_c
                     }`}
                   >
                     {/* Left: Index badge + Full Name */}
-                    <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
                       <div
                         className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center font-black text-[11px] sm:text-xs shrink-0 tabular-nums ${
                           isPresent
@@ -727,9 +727,9 @@ export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_c
                       >
                         {indexNum}
                       </div>
-                      <div className="min-w-0 flex-1 pr-1">
+                      <div className="min-w-0 flex-1">
                         <p
-                          className={`text-xs sm:text-sm font-extrabold leading-tight break-words ${
+                          className={`text-xs sm:text-sm font-extrabold leading-snug ${
                             isUnexcused
                               ? 'text-rose-700 dark:text-rose-400'
                               : isExcused
@@ -754,11 +754,12 @@ export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_c
                       </div>
                     </div>
 
-                    {/* Right: Segmented 4-button control (Bor / Yo'q / Sababli / Kech) */}
+                    {/* Right: Segmented 4-button control + Edit / Delete */}
                     <div
-                      className="flex items-center gap-0.5 sm:gap-1 bg-slate-100 dark:bg-slate-900 p-0.5 sm:p-1 rounded-xl shrink-0 border border-slate-200/60 dark:border-slate-800"
+                      className="flex items-center justify-between sm:justify-end gap-1.5 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200/50 dark:border-slate-800/60 shrink-0"
                       onClick={(e) => e.stopPropagation()}
                     >
+                      <div className="flex items-center gap-0.5 sm:gap-1 bg-slate-100 dark:bg-slate-900 p-0.5 sm:p-1 rounded-xl shrink-0 border border-slate-200/60 dark:border-slate-800">
                       <button
                         type="button"
                         onClick={(e) => handleSetStatus(e, student.id, 'PRESENT')}
@@ -852,7 +853,8 @@ export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_c
                       </button>
                     </div>
                   </div>
-                );
+                </div>
+              );
               })
             )}
           </div>
