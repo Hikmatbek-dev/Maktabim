@@ -31,6 +31,7 @@ export interface User {
   name: string;
   username: string;
   password_hash?: string;
+  raw_password?: string;
   role: Role;
   school_id?: string | null;
   school_name?: string | null;

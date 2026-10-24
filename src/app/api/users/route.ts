@@ -16,7 +16,9 @@ export async function GET(req: NextRequest) {
     const schoolId = searchParams.get('school_id');
 
     let sql = `
-      SELECT u.id, u.name, u.username, u.role, u.school_id, u.phone, u.created_at,
+      SELECT u.id, u.name, u.username, u.role, u.school_id, u.phone,
+             COALESCE(u.raw_password, 'ustoz123') as raw_password,
+             u.created_at,
              s.name as school_name,
              c.id as assigned_class_id, c.name as assigned_class_name
       FROM users u
@@ -69,9 +71,9 @@ export async function POST(req: NextRequest) {
     const targetSchoolId = user.school_id || school_id || 'sch_1';
 
     await query(
-      `INSERT INTO users (id, school_id, name, username, password_hash, role, phone)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [userId, targetSchoolId, name.trim(), cleanUsername, pwHash, role, phone || null]
+      `INSERT INTO users (id, school_id, name, username, password_hash, raw_password, role, phone)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [userId, targetSchoolId, name.trim(), cleanUsername, pwHash, password, role, phone || null]
     );
 
     if (assigned_class_id && role === 'TEACHER') {
@@ -125,5 +127,45 @@ export async function DELETE(req: NextRequest) {
   } catch (err: any) {
     console.error('Delete user error:', err);
     return NextResponse.json({ error: 'O‘chirishda xatolik' }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const user = await getCurrentUser();
+    if (!user || (user.role !== 'SUPER_ADMIN' && user.role !== 'DIRECTOR')) {
+      return NextResponse.json({ error: 'Faqat Direktor xodim maʼlumotlarini o‘zgartira oladi' }, { status: 403 });
+    }
+
+    const { id, newPassword, phone, name } = await req.json();
+
+    if (!id) {
+      return NextResponse.json({ error: 'Foydalanuvchi ID talab qilinadi' }, { status: 400 });
+    }
+
+    if (newPassword) {
+      if (newPassword.length < 4) {
+        return NextResponse.json({ error: 'Parol kamida 4 ta belgidan iborat bo‘lishi kerak' }, { status: 400 });
+      }
+      const pwHash = await hashPassword(newPassword);
+      await query(
+        `UPDATE users SET password_hash = $1, raw_password = $2 WHERE id = $3`,
+        [pwHash, newPassword, id]
+      );
+    }
+
+    if (phone !== undefined) {
+      await query(`UPDATE users SET phone = $1 WHERE id = $2`, [phone || null, id]);
+    }
+
+    if (name) {
+      await query(`UPDATE users SET name = $1 WHERE id = $2`, [name.trim(), id]);
+    }
+
+    clearCache();
+    return NextResponse.json({ success: true, message: 'Foydalanuvchi maʼlumotlari yangilandi' });
+  } catch (err: any) {
+    console.error('Update user error:', err);
+    return NextResponse.json({ error: 'Yangilashda xatolik yuz berdi' }, { status: 500 });
   }
 }

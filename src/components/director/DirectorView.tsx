@@ -53,6 +53,54 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
   const [staffError, setStaffError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Xodim batafsil va login-parol ko'rish modali
+  const [selectedStaffModal, setSelectedStaffModal] = useState<any | null>(null);
+  const [showModalPassword, setShowModalPassword] = useState(false);
+  const [cardRevealedPasswords, setCardRevealedPasswords] = useState<Record<string, boolean>>({});
+  const [staffNewPassword, setStaffNewPassword] = useState('');
+  const [updatingStaffPassword, setUpdatingStaffPassword] = useState(false);
+
+  const handleCopyText = (text: string, label: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+    }
+    showToast(`${label} nusxalandi!`);
+  };
+
+  const handleUpdateStaffPassword = async (staffId: string) => {
+    if (!staffNewPassword || staffNewPassword.trim().length < 4) {
+      alert('Parol kamida 4 ta belgidan iborat bo‘lishi kerak');
+      return;
+    }
+    setUpdatingStaffPassword(true);
+    try {
+      const res = await fetch('/api/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: staffId,
+          newPassword: staffNewPassword.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Parolni yangilashda xatolik yuz berdi');
+        return;
+      }
+      showToast('Yangi parol muvaffaqiyatli saqlandi!');
+      if (selectedStaffModal) {
+        setSelectedStaffModal((prev: any) => ({ ...prev, raw_password: staffNewPassword.trim() }));
+      }
+      setStaffNewPassword('');
+      fetchUsers();
+    } catch (e) {
+      console.error(e);
+      alert('Server bilan bog‘lanishda xatolik');
+    } finally {
+      setUpdatingStaffPassword(false);
+    }
+  };
+
   // O'quvchi davomat holatini saqlash (Sababli, Bor, Sababsiz, Kechikkan)
   const handleSaveStudentStatus = async (studentId: string, status: string, reasonText?: string) => {
     if (!selectedClassModal) return;
@@ -862,38 +910,269 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
                       </div>
                     </div>
 
-                    {!isDirector && (
+                    <div className="flex items-center gap-1">
                       <button
-                        onClick={() => handleDeleteStaff(st.id, st.name)}
-                        className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-all"
-                        title="Xodimni o‘chirish"
+                        type="button"
+                        onClick={() => {
+                          setSelectedStaffModal(st);
+                          setShowModalPassword(false);
+                          setStaffNewPassword('');
+                        }}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition-all"
+                        title="Batafsil maʼlumot va parolni ko‘rish"
                       >
-                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                        <span className="material-symbols-outlined text-[19px]">visibility</span>
                       </button>
-                    )}
+
+                      {!isDirector && (
+                        <button
+                          onClick={() => handleDeleteStaff(st.id, st.name)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-all opacity-0 group-hover:opacity-100"
+                          title="Xodimni o‘chirish"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">delete</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="pt-3 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                    <span className="font-mono text-[11px] font-semibold">
-                      Login: <strong className="text-slate-900 dark:text-white">@{st.username}</strong>
-                    </span>
+                  <div className="pt-3 border-t border-slate-200/80 dark:border-slate-800 space-y-2">
+                    <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                      <span className="font-mono text-[11px] font-semibold">
+                        Login: <strong className="text-slate-900 dark:text-white">@{st.username}</strong>
+                      </span>
 
-                    {st.phone && (
-                      <a
-                        href={`tel:${st.phone}`}
-                        className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold hover:underline"
-                        title="Qo‘ng‘iroq qilish"
-                      >
-                        <span className="material-symbols-outlined text-[14px]">call</span>
-                        <span>{st.phone}</span>
-                      </a>
-                    )}
+                      {st.phone && (
+                        <a
+                          href={`tel:${st.phone}`}
+                          className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold hover:underline"
+                          title="Qo‘ng‘iroq qilish"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">call</span>
+                          <span>{st.phone}</span>
+                        </a>
+                      )}
+                    </div>
+
+                    {/* Parol qatori: ko'zcha bilan ochish/yashirish va batafsil modal */}
+                    <div className="flex items-center justify-between bg-white dark:bg-slate-950/60 px-3 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-800 text-xs">
+                      <div className="flex items-center gap-1.5 font-mono text-[11px]">
+                        <span className="text-slate-400">Parol:</span>
+                        <strong className="text-slate-900 dark:text-white font-bold tracking-wider">
+                          {cardRevealedPasswords[st.id] ? (st.raw_password || 'ustoz123') : '••••••••'}
+                        </strong>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setCardRevealedPasswords(prev => ({ ...prev, [st.id]: !prev[st.id] }))}
+                          className="p-1 rounded-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition-all"
+                          title={cardRevealedPasswords[st.id] ? "Parolni yashirish" : "Parolni ko‘rish"}
+                        >
+                          <span className="material-symbols-outlined text-[16px]">
+                            {cardRevealedPasswords[st.id] ? 'visibility_off' : 'visibility'}
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedStaffModal(st);
+                            setShowModalPassword(true);
+                            setStaffNewPassword('');
+                          }}
+                          className="px-2 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 text-[11px] font-bold hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all"
+                        >
+                          Batafsil
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               );
             })}
           </div>
         </section>
+      )}
+
+      {/* ================= MODAL: XODIM BATAFSIL & LOGIN-PAROL BOSHQARUVI ================= */}
+      {selectedStaffModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-lg bg-white dark:bg-[#0c121e] rounded-3xl border border-slate-200/80 dark:border-slate-800 p-5 sm:p-6 shadow-2xl space-y-4">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-lg shadow-md ${
+                  selectedStaffModal.role === 'DIRECTOR'
+                    ? 'bg-gradient-to-tr from-blue-700 to-indigo-600'
+                    : selectedStaffModal.role === 'DEPUTY_DIRECTOR'
+                    ? 'bg-purple-600'
+                    : selectedStaffModal.role === 'INSPECTOR'
+                    ? 'bg-amber-600'
+                    : 'bg-emerald-600'
+                }`}>
+                  {selectedStaffModal.name.charAt(0)}
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-slate-900 dark:text-white leading-tight">
+                    {selectedStaffModal.name}
+                  </h3>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold ${
+                      selectedStaffModal.role === 'DIRECTOR'
+                        ? 'bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300'
+                        : selectedStaffModal.role === 'DEPUTY_DIRECTOR'
+                        ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300'
+                        : selectedStaffModal.role === 'INSPECTOR'
+                        ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300'
+                        : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300'
+                    }`}>
+                      {selectedStaffModal.role === 'DIRECTOR'
+                        ? 'Direktor'
+                        : selectedStaffModal.role === 'DEPUTY_DIRECTOR'
+                        ? 'Zamdirektor'
+                        : selectedStaffModal.role === 'INSPECTOR'
+                        ? 'Davomatchi'
+                        : 'Sinf Rahbari'}
+                    </span>
+                    {selectedStaffModal.assigned_class_name && (
+                      <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900 rounded-md text-[10px] font-extrabold">
+                        {selectedStaffModal.assigned_class_name} sinfi
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setSelectedStaffModal(null)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+
+            {/* Tizimga Kirish Ma'lumotlari Blok */}
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-50/70 to-indigo-50/50 dark:from-blue-950/30 dark:to-indigo-950/20 border border-blue-200/80 dark:border-blue-900/50 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-blue-700 dark:text-blue-400">
+                  <span className="material-symbols-outlined text-[17px]">vpn_key</span>
+                  <span>Tizimga Kirish Maʼlumotlari</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const text = `Maktab Davomat Tizimi\nF.I.Sh: ${selectedStaffModal.name}\nLogin: @${selectedStaffModal.username}\nParol: ${selectedStaffModal.raw_password || 'ustoz123'}\nSayt: https://maktabim.vercel.app`;
+                    handleCopyText(text, 'Barcha login-parol maʼlumotlari');
+                  }}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold shadow-xs active:scale-95 transition-all"
+                  title="Telegramga yuborish uchun barcha ma'lumotlarni nusxalash"
+                >
+                  <span className="material-symbols-outlined text-[14px]">send</span>
+                  <span>Telegram uchun nusxalash</span>
+                </button>
+              </div>
+
+              {/* Login qatori */}
+              <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200/70 dark:border-slate-800">
+                <div>
+                  <span className="text-[10px] font-extrabold uppercase text-slate-400 block">Login</span>
+                  <span className="text-sm font-mono font-bold text-slate-900 dark:text-white">
+                    @{selectedStaffModal.username}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleCopyText(`@${selectedStaffModal.username}`, 'Login')}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-slate-600 dark:text-slate-300 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold transition-all"
+                  title="Loginni nusxalash"
+                >
+                  <span className="material-symbols-outlined text-[16px]">content_copy</span>
+                  <span>Nusxa olish</span>
+                </button>
+              </div>
+
+              {/* Parol qatori: Ko'zcha tugmasi bilan */}
+              <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200/70 dark:border-slate-800">
+                <div>
+                  <span className="text-[10px] font-extrabold uppercase text-slate-400 block">Parol</span>
+                  <span className="text-sm font-mono font-bold text-slate-900 dark:text-white tracking-wider">
+                    {showModalPassword ? (selectedStaffModal.raw_password || 'ustoz123') : '••••••••'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowModalPassword(!showModalPassword)}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 text-blue-700 dark:text-blue-300 text-xs font-bold transition-all"
+                    title={showModalPassword ? 'Parolni yashirish' : 'Parolni ko‘rish'}
+                  >
+                    <span className="material-symbols-outlined text-[16px]">
+                      {showModalPassword ? 'visibility_off' : 'visibility'}
+                    </span>
+                    <span>{showModalPassword ? 'Yashirish' : 'Ko‘rish'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyText(selectedStaffModal.raw_password || 'ustoz123', 'Parol')}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                    title="Paroldan nusxa olish"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">content_copy</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Parolni Yangilash / Tiklash (Reset Password) */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 space-y-2">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300">
+                <span className="material-symbols-outlined text-[16px] text-amber-500">lock_reset</span>
+                <span>Ustoz parolni unutgan bo‘lsa, yangi parol o‘rnatish:</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={staffNewPassword}
+                  onChange={(e) => setStaffNewPassword(e.target.value)}
+                  placeholder="Yangi parol (masalan: 123456)"
+                  className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-mono text-slate-900 dark:text-white outline-hidden focus:border-blue-500"
+                />
+                <button
+                  type="button"
+                  disabled={updatingStaffPassword || !staffNewPassword}
+                  onClick={() => handleUpdateStaffPassword(selectedStaffModal.id)}
+                  className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-bold shadow-xs active:scale-95 transition-all whitespace-nowrap"
+                >
+                  {updatingStaffPassword ? 'Saqlanmoqda...' : 'Saqlash'}
+                </button>
+              </div>
+            </div>
+
+            {/* Aloqa va qo'shimcha ma'lumotlar */}
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900">
+                <span className="text-[10px] font-extrabold uppercase text-slate-400 block">Telefon</span>
+                {selectedStaffModal.phone ? (
+                  <a href={`tel:${selectedStaffModal.phone}`} className="font-bold text-emerald-600 hover:underline flex items-center gap-1 mt-0.5">
+                    <span className="material-symbols-outlined text-[14px]">call</span>
+                    <span>{selectedStaffModal.phone}</span>
+                  </a>
+                ) : (
+                  <span className="text-slate-400 mt-0.5 block">Kiritilmagan</span>
+                )}
+              </div>
+
+              <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900">
+                <span className="text-[10px] font-extrabold uppercase text-slate-400 block">Biriktirilgan Sinf</span>
+                <span className="font-bold text-slate-900 dark:text-white mt-0.5 block">
+                  {selectedStaffModal.assigned_class_name ? `${selectedStaffModal.assigned_class_name} sinfi` : 'Biriktirilmagan'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ================= MODAL: YANGI XODIM QO'SHISH ================= */}
