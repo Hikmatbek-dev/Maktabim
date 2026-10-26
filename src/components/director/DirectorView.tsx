@@ -158,7 +158,7 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
     try {
       const res = await fetch(`/api/users?school_id=${schoolId || 'sch_1'}`);
       const data = await res.json();
-      if (data.users) {
+      if (data && Array.isArray(data.users)) {
         setStaffList(data.users);
       }
     } catch (e) {
@@ -182,7 +182,9 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
 
       setStats(statsData);
       setClasses(classesData.classes || []);
-      setStaffList(usersData.users || []);
+      if (usersData && Array.isArray(usersData.users)) {
+        setStaffList(usersData.users);
+      }
     } catch (err) {
       console.error(err);
     } finally {
