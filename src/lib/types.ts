@@ -32,6 +32,8 @@ export interface User {
   username: string;
   password_hash?: string;
   raw_password?: string;
+  schedule?: Record<string, Array<{ hour: number; class_name: string; subject: string; room?: string }>>;
+  work_days?: string[];
   role: Role;
   school_id?: string | null;
   school_name?: string | null;

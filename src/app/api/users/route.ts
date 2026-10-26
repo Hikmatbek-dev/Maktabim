@@ -18,6 +18,8 @@ export async function GET(req: NextRequest) {
     let sql = `
       SELECT u.id, u.name, u.username, u.role, u.school_id, u.phone,
              COALESCE(u.raw_password, 'ustoz123') as raw_password,
+             u.schedule,
+             u.work_days,
              u.created_at,
              s.name as school_name,
              c.id as assigned_class_id, c.name as assigned_class_name
@@ -137,7 +139,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Faqat Direktor xodim maʼlumotlarini o‘zgartira oladi' }, { status: 403 });
     }
 
-    const { id, newPassword, phone, name } = await req.json();
+    const { id, newPassword, phone, name, schedule, work_days } = await req.json();
 
     if (!id) {
       return NextResponse.json({ error: 'Foydalanuvchi ID talab qilinadi' }, { status: 400 });
@@ -160,6 +162,14 @@ export async function PATCH(req: NextRequest) {
 
     if (name) {
       await query(`UPDATE users SET name = $1 WHERE id = $2`, [name.trim(), id]);
+    }
+
+    if (schedule !== undefined) {
+      await query(`UPDATE users SET schedule = $1 WHERE id = $2`, [JSON.stringify(schedule), id]);
+    }
+
+    if (work_days !== undefined) {
+      await query(`UPDATE users SET work_days = $1 WHERE id = $2`, [work_days, id]);
     }
 
     clearCache();

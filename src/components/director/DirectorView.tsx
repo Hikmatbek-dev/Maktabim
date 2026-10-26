@@ -60,6 +60,11 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
   const [staffNewPassword, setStaffNewPassword] = useState('');
   const [updatingStaffPassword, setUpdatingStaffPassword] = useState(false);
 
+  // O'qituvchilar dars kuni va dars jadvali holati
+  const [teacherDayFilter, setTeacherDayFilter] = useState<string>('ALL');
+  const [staffViewMode, setStaffViewMode] = useState<'cards' | 'schedule'>('cards');
+  const [selectedTeacherForSchedule, setSelectedTeacherForSchedule] = useState<any | null>(null);
+
   const handleCopyText = (text: string, label: string) => {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       navigator.clipboard.writeText(text);
@@ -370,39 +375,100 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
 
         {/* Action Controls */}
         <div className="flex flex-wrap items-center gap-3 self-start lg:self-auto">
-          {/* Shift Segmented Toggle */}
-          <div className="inline-flex p-1 bg-slate-100/90 dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
-            <button
-              onClick={() => setFilterShift('ALL')}
-              className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all ${
-                filterShift === 'ALL'
-                  ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              Hammasi
-            </button>
-            <button
-              onClick={() => setFilterShift('1')}
-              className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all ${
-                filterShift === '1'
-                  ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              1-smena
-            </button>
-            <button
-              onClick={() => setFilterShift('2')}
-              className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all ${
-                filterShift === '2'
-                  ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              2-smena
-            </button>
-          </div>
+          {activeTab === 'staff' ? (
+            /* Hafta Kunlari & Dars Jadvali Filtrlari (O'qituvchilar va Xodimlar uchun) */
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex p-1 bg-slate-100/90 dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+                <button
+                  onClick={() => setTeacherDayFilter('ALL')}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                    teacherDayFilter === 'ALL'
+                      ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  Barcha kunlar
+                </button>
+                {['Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'].map((day) => {
+                  const shortName = day.slice(0, 4);
+                  const isActive = teacherDayFilter === day;
+                  return (
+                    <button
+                      key={day}
+                      onClick={() => setTeacherDayFilter(day)}
+                      className={`px-2.5 sm:px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                        isActive
+                          ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      {shortName}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Ko'rinish rejimi: Xodimlar kartalari yoki Umumiy Dars Jadvali */}
+              <div className="inline-flex p-1 bg-slate-100/90 dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+                <button
+                  onClick={() => setStaffViewMode('cards')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                    staffViewMode === 'cards'
+                      ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[16px]">badge</span>
+                  <span>Xodimlar</span>
+                </button>
+                <button
+                  onClick={() => setStaffViewMode('schedule')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                    staffViewMode === 'schedule'
+                      ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[16px]">calendar_month</span>
+                  <span>Dars Jadvali</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Shift Segmented Toggle (Sinflar va umumiy hisobot uchun) */
+            <div className="inline-flex p-1 bg-slate-100/90 dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+              <button
+                onClick={() => setFilterShift('ALL')}
+                className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                  filterShift === 'ALL'
+                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                Hammasi
+              </button>
+              <button
+                onClick={() => setFilterShift('1')}
+                className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                  filterShift === '1'
+                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                1-smena
+              </button>
+              <button
+                onClick={() => setFilterShift('2')}
+                className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                  filterShift === '2'
+                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                2-smena
+              </button>
+            </div>
+          )}
 
           {/* Excel Export CTA */}
           <button
@@ -835,13 +901,20 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800/80">
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white">Maktab Xodimlari Boshqaruvi</h2>
+                <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white">
+                  Maktab Xodimlari va O‘qituvchilar Jadvali
+                </h2>
                 <span className="px-2.5 py-0.5 bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 rounded-full text-xs font-bold">
                   {staffList.length} nafar xodim
                 </span>
+                {teacherDayFilter !== 'ALL' && (
+                  <span className="px-2.5 py-0.5 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-full text-xs font-bold">
+                    {teacherDayFilter} kuni
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                O‘qituvchilar, sinf rahbarlari, davomat mas’ullari va ma’muriyat akkauntlari
+                O‘qituvchilar dars jadvali, sinf rahbarlari, login-parollar va ma’muriyat akkauntlari
               </p>
             </div>
 
@@ -858,141 +931,297 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
             </button>
           </div>
 
-          {/* Xodimlar Kartochkalari */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {staffList.map((st) => {
-              const isTeacher = st.role === 'TEACHER';
-              const isInspector = st.role === 'INSPECTOR';
-              const isDeputy = st.role === 'DEPUTY_DIRECTOR';
-              const isDirector = st.role === 'DIRECTOR';
+          {/* Dars Jadvali Ko'rinishi (Table) */}
+          {staffViewMode === 'schedule' ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-xs font-extrabold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                  <span>
+                    {teacherDayFilter === 'ALL'
+                      ? 'Dushanba kuni dars jadvali (Hafta boshi)'
+                      : `${teacherDayFilter} kuni dars jadvali`}
+                  </span>
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  Jami dars o‘tadigan o‘qituvchilar: {staffList.filter((s) => s.role === 'TEACHER').length} nafar
+                </span>
+              </div>
 
-              return (
-                <div
-                  key={st.id}
-                  className="p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 hover:border-blue-500 dark:hover:border-blue-500 transition-all flex flex-col justify-between gap-3 group shadow-2xs"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-11 h-11 rounded-2xl flex items-center justify-center text-white font-black text-base shadow-xs ${
-                        isDirector
-                          ? 'bg-gradient-to-tr from-blue-700 to-indigo-600'
-                          : isDeputy
-                          ? 'bg-purple-600'
-                          : isInspector
-                          ? 'bg-amber-600'
-                          : 'bg-emerald-600'
-                      }`}>
-                        {st.name.charAt(0)}
-                      </div>
-                      <div>
-                        <h3 className="font-extrabold text-sm text-slate-900 dark:text-white leading-tight">
-                          {st.name}
-                        </h3>
-                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold ${
-                            isDirector
-                              ? 'bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300'
-                              : isDeputy
-                              ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300'
-                              : isInspector
-                              ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300'
-                              : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300'
-                          }`}>
-                            {isDirector ? 'Direktor' : isDeputy ? 'Zamdirektor' : isInspector ? 'Davomatchi' : 'Sinf Rahbari'}
-                          </span>
+              <div className="overflow-x-auto rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-100/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 font-extrabold uppercase text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-800">
+                    <tr>
+                      <th className="py-3 px-4 min-w-[180px]">O‘qituvchi F.I.Sh</th>
+                      <th className="py-3 px-3 min-w-[110px]">1-soat (08:00)</th>
+                      <th className="py-3 px-3 min-w-[110px]">2-soat (08:50)</th>
+                      <th className="py-3 px-3 min-w-[110px]">3-soat (09:40)</th>
+                      <th className="py-3 px-3 min-w-[110px]">4-soat (10:35)</th>
+                      <th className="py-3 px-3 min-w-[110px]">5-soat (11:25)</th>
+                      <th className="py-3 px-3 min-w-[110px]">6-soat (12:15)</th>
+                      <th className="py-3 px-3 text-right">Amal</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                    {staffList
+                      .filter((s) => s.role === 'TEACHER')
+                      .map((st) => {
+                        const day = teacherDayFilter === 'ALL' ? 'Dushanba' : teacherDayFilter;
+                        const lessons = st.schedule?.[day] || [];
+                        const getLesson = (hour: number) => lessons.find((l: any) => l.hour === hour);
 
-                          {st.assigned_class_name && (
-                            <span className="px-1.5 py-0.5 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900 rounded-md text-[10px] font-extrabold">
-                              {st.assigned_class_name} sinfi
-                            </span>
+                        return (
+                          <tr key={st.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-900/50 transition-colors">
+                            <td className="py-3 px-4">
+                              <div className="font-extrabold text-slate-900 dark:text-white">{st.name}</div>
+                              <div className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                                <span className="font-mono text-blue-600 dark:text-blue-400">@{st.username}</span>
+                                {st.assigned_class_name && (
+                                  <span>• {st.assigned_class_name} sinfi</span>
+                                )}
+                              </div>
+                            </td>
+                            {[1, 2, 3, 4, 5, 6].map((h) => {
+                              const ls = getLesson(h);
+                              return (
+                                <td key={h} className="py-3 px-3">
+                                  {ls ? (
+                                    <span className="inline-block px-2 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-[11px] font-extrabold text-blue-700 dark:text-blue-300 shadow-2xs">
+                                      {ls.class_name}{' '}
+                                      <span className="text-[10px] text-slate-500 font-normal">
+                                        ({ls.subject})
+                                      </span>
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-300 dark:text-slate-700 font-mono text-xs">—</span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                            <td className="py-3 px-3 text-right">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedTeacherForSchedule(st)}
+                                className="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 dark:bg-slate-800 dark:hover:bg-blue-950/50 text-slate-600 dark:text-slate-300 rounded-lg text-xs font-bold transition-all whitespace-nowrap"
+                              >
+                                Haftalik Jadval
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            /* Xodimlar Kartochkalari (Cards Grid) */
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {staffList
+                .filter((st) => {
+                  if (teacherDayFilter === 'ALL') return true;
+                  if (st.role !== 'TEACHER') return true;
+                  const dayLessons = st.schedule?.[teacherDayFilter];
+                  return Array.isArray(dayLessons) && dayLessons.length > 0;
+                })
+                .map((st) => {
+                  const isTeacher = st.role === 'TEACHER';
+                  const isInspector = st.role === 'INSPECTOR';
+                  const isDeputy = st.role === 'DEPUTY_DIRECTOR';
+                  const isDirector = st.role === 'DIRECTOR';
+
+                  return (
+                    <div
+                      key={st.id}
+                      className="p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 hover:border-blue-500 dark:hover:border-blue-500 transition-all flex flex-col justify-between gap-3 group shadow-2xs"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-11 h-11 rounded-2xl flex items-center justify-center text-white font-black text-base shadow-xs ${
+                              isDirector
+                                ? 'bg-gradient-to-tr from-blue-700 to-indigo-600'
+                                : isDeputy
+                                ? 'bg-purple-600'
+                                : isInspector
+                                ? 'bg-amber-600'
+                                : 'bg-emerald-600'
+                            }`}
+                          >
+                            {st.name.charAt(0)}
+                          </div>
+                          <div>
+                            <h3 className="font-extrabold text-sm text-slate-900 dark:text-white leading-tight">
+                              {st.name}
+                            </h3>
+                            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                              <span
+                                className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold ${
+                                  isDirector
+                                    ? 'bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300'
+                                    : isDeputy
+                                    ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300'
+                                    : isInspector
+                                    ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300'
+                                    : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300'
+                                }`}
+                              >
+                                {isDirector
+                                  ? 'Direktor'
+                                  : isDeputy
+                                  ? 'Zamdirektor'
+                                  : isInspector
+                                  ? 'Davomatchi'
+                                  : 'Sinf Rahbari'}
+                              </span>
+
+                              {st.assigned_class_name && (
+                                <span className="px-1.5 py-0.5 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900 rounded-md text-[10px] font-extrabold">
+                                  {st.assigned_class_name} sinfi
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedStaffModal(st);
+                              setShowModalPassword(false);
+                              setStaffNewPassword('');
+                            }}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition-all"
+                            title="Batafsil maʼlumot va parolni ko‘rish"
+                          >
+                            <span className="material-symbols-outlined text-[19px]">visibility</span>
+                          </button>
+
+                          {!isDirector && (
+                            <button
+                              onClick={() => handleDeleteStaff(st.id, st.name)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-all opacity-0 group-hover:opacity-100"
+                              title="Xodimni o‘chirish"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">delete</span>
+                            </button>
                           )}
                         </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedStaffModal(st);
-                          setShowModalPassword(false);
-                          setStaffNewPassword('');
-                        }}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition-all"
-                        title="Batafsil maʼlumot va parolni ko‘rish"
-                      >
-                        <span className="material-symbols-outlined text-[19px]">visibility</span>
-                      </button>
+                      {/* O'qituvchi Dars Kuni va Dars Jadvali Ko'rinishi */}
+                      {isTeacher && (
+                        <div className="bg-white dark:bg-slate-950/60 p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800 text-xs space-y-1.5">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="font-bold text-slate-600 dark:text-slate-400 flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[14px] text-blue-600">calendar_month</span>
+                              <span>
+                                {teacherDayFilter === 'ALL'
+                                  ? 'Dars kunlari & Jadvali'
+                                  : `${teacherDayFilter} darslari`}
+                              </span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedTeacherForSchedule(st)}
+                              className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5"
+                            >
+                              <span className="material-symbols-outlined text-[13px]">schedule</span>
+                              <span>Haftalik jadval</span>
+                            </button>
+                          </div>
 
-                      {!isDirector && (
-                        <button
-                          onClick={() => handleDeleteStaff(st.id, st.name)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-all opacity-0 group-hover:opacity-100"
-                          title="Xodimni o‘chirish"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">delete</span>
-                        </button>
+                          {teacherDayFilter !== 'ALL' ? (
+                            st.schedule?.[teacherDayFilter] && st.schedule[teacherDayFilter].length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {st.schedule[teacherDayFilter].map((ls: any, i: number) => (
+                                  <span
+                                    key={i}
+                                    className="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900 rounded-md text-[10px] font-bold"
+                                  >
+                                    {ls.hour}-soat: {ls.class_name} ({ls.subject || 'Dars'})
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-[11px] text-slate-400 italic">Bu kuni darsi yo‘q</p>
+                            )
+                          ) : (
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span className="text-slate-500">Haftalik dars soati:</span>
+                              <span className="font-bold text-blue-600 dark:text-blue-400">
+                                {Object.values(st.schedule || {}).reduce(
+                                  (acc: number, arr: any) => acc + (arr?.length || 0),
+                                  0
+                                )}{' '}
+                                soat dars
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       )}
-                    </div>
-                  </div>
 
-                  <div className="pt-3 border-t border-slate-200/80 dark:border-slate-800 space-y-2">
-                    <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                      <span className="font-mono text-[11px] font-semibold">
-                        Login: <strong className="text-slate-900 dark:text-white">@{st.username}</strong>
-                      </span>
-
-                      {st.phone && (
-                        <a
-                          href={`tel:${st.phone}`}
-                          className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold hover:underline"
-                          title="Qo‘ng‘iroq qilish"
-                        >
-                          <span className="material-symbols-outlined text-[14px]">call</span>
-                          <span>{st.phone}</span>
-                        </a>
-                      )}
-                    </div>
-
-                    {/* Parol qatori: ko'zcha bilan ochish/yashirish va batafsil modal */}
-                    <div className="flex items-center justify-between bg-white dark:bg-slate-950/60 px-3 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-800 text-xs">
-                      <div className="flex items-center gap-1.5 font-mono text-[11px]">
-                        <span className="text-slate-400">Parol:</span>
-                        <strong className="text-slate-900 dark:text-white font-bold tracking-wider">
-                          {cardRevealedPasswords[st.id] ? (st.raw_password || 'ustoz123') : '••••••••'}
-                        </strong>
-                      </div>
-
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => setCardRevealedPasswords(prev => ({ ...prev, [st.id]: !prev[st.id] }))}
-                          className="p-1 rounded-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition-all"
-                          title={cardRevealedPasswords[st.id] ? "Parolni yashirish" : "Parolni ko‘rish"}
-                        >
-                          <span className="material-symbols-outlined text-[16px]">
-                            {cardRevealedPasswords[st.id] ? 'visibility_off' : 'visibility'}
+                      <div className="pt-3 border-t border-slate-200/80 dark:border-slate-800 space-y-2">
+                        <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                          <span className="font-mono text-[11px] font-semibold">
+                            Login: <strong className="text-slate-900 dark:text-white">@{st.username}</strong>
                           </span>
-                        </button>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedStaffModal(st);
-                            setShowModalPassword(true);
-                            setStaffNewPassword('');
-                          }}
-                          className="px-2 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 text-[11px] font-bold hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all"
-                        >
-                          Batafsil
-                        </button>
+                          {st.phone && (
+                            <a
+                              href={`tel:${st.phone}`}
+                              className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold hover:underline"
+                              title="Qo‘ng‘iroq qilish"
+                            >
+                              <span className="material-symbols-outlined text-[14px]">call</span>
+                              <span>{st.phone}</span>
+                            </a>
+                          )}
+                        </div>
+
+                        {/* Parol qatori: ko'zcha bilan ochish/yashirish va batafsil modal */}
+                        <div className="flex items-center justify-between bg-white dark:bg-slate-950/60 px-3 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-800 text-xs">
+                          <div className="flex items-center gap-1.5 font-mono text-[11px]">
+                            <span className="text-slate-400">Parol:</span>
+                            <strong className="text-slate-900 dark:text-white font-bold tracking-wider">
+                              {cardRevealedPasswords[st.id] ? st.raw_password || 'ustoz123' : '••••••••'}
+                            </strong>
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setCardRevealedPasswords((prev) => ({ ...prev, [st.id]: !prev[st.id] }))
+                              }
+                              className="p-1 rounded-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition-all"
+                              title={cardRevealedPasswords[st.id] ? 'Parolni yashirish' : 'Parolni ko‘rish'}
+                            >
+                              <span className="material-symbols-outlined text-[16px]">
+                                {cardRevealedPasswords[st.id] ? 'visibility_off' : 'visibility'}
+                              </span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedStaffModal(st);
+                                setShowModalPassword(true);
+                                setStaffNewPassword('');
+                              }}
+                              className="px-2 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 text-[11px] font-bold hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all"
+                            >
+                              Batafsil
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                  );
+                })}
+            </div>
+          )}
         </section>
       )}
 
@@ -1170,6 +1399,106 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
                   {selectedStaffModal.assigned_class_name ? `${selectedStaffModal.assigned_class_name} sinfi` : 'Biriktirilmagan'}
                 </span>
               </div>
+            </div>
+
+            {/* O'qituvchi bo'lsa dars jadvalini ko'rish tugmasi */}
+            {selectedStaffModal.role === 'TEACHER' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedTeacherForSchedule(selectedStaffModal);
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/50 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 font-bold text-xs border border-blue-200 dark:border-blue-900 transition-all"
+              >
+                <span className="material-symbols-outlined text-[17px]">calendar_month</span>
+                <span>Haftalik To‘liq Dars Jadvalini Ko‘rish</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL: O'QITUVCHI HAFTALIK DARS JADVALI ================= */}
+      {selectedTeacherForSchedule && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-2xl bg-white dark:bg-[#0c121e] rounded-3xl border border-slate-200/80 dark:border-slate-800 p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold text-lg shadow-md">
+                  <span className="material-symbols-outlined text-[24px]">calendar_month</span>
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-slate-900 dark:text-white leading-tight">
+                    {selectedTeacherForSchedule.name} — Dars Jadvali
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {selectedTeacherForSchedule.assigned_class_name
+                      ? `${selectedTeacherForSchedule.assigned_class_name} sinf rahbari`
+                      : 'Fan o‘qituvchisi'}{' '}
+                    • Haftalik darslari
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedTeacherForSchedule(null)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+
+            {/* Kunlar bo'yicha jadval */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              {['Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'].map((day) => {
+                const lessons = selectedTeacherForSchedule.schedule?.[day] || [];
+                return (
+                  <div
+                    key={day}
+                    className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 space-y-2"
+                  >
+                    <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800 pb-1.5">
+                      <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                        {day}
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-400">
+                        {lessons.length > 0 ? `${lessons.length} ta dars` : 'Dars yo‘q'}
+                      </span>
+                    </div>
+
+                    {lessons.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {lessons.map((ls: any, i: number) => (
+                          <div
+                            key={i}
+                            className="flex items-center justify-between bg-white dark:bg-slate-950 p-2 rounded-xl border border-slate-200/60 dark:border-slate-800 text-xs"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="w-5 h-5 rounded-md bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-bold text-[10px] flex items-center justify-center">
+                                {ls.hour}
+                              </span>
+                              <span className="font-extrabold text-slate-900 dark:text-white">
+                                {ls.class_name} sinfi
+                              </span>
+                              <span className="text-slate-500 text-[11px]">• {ls.subject}</span>
+                            </div>
+                            {ls.room && (
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                {ls.room}-xona
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-slate-400 italic py-1 text-center">
+                        Dars rejalashtirilmagan (Bo‘sh kun)
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
