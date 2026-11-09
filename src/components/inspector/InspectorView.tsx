@@ -6,6 +6,8 @@ import { StudentMonthlyModal } from '../StudentMonthlyModal';
 import { AddStudentModal } from '../AddStudentModal';
 import { EditStudentModal, EditableStudent } from '../EditStudentModal';
 import { AnalyticsDashboard } from '../analytics/AnalyticsDashboard';
+import { getCalendarDayInfo } from '@/lib/academicCalendar';
+import { AcademicQuarter } from '@/lib/types';
 
 interface InspectorViewProps {
   selectedDate: string;
@@ -41,6 +43,22 @@ export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_c
 
   // 36+ soat dars qoldirgan xavf guruhi o'quvchilari
   const [riskStudents, setRiskStudents] = useState<any[]>([]);
+  const [quarters, setQuarters] = useState<AcademicQuarter[]>([]);
+
+  useEffect(() => {
+    const fetchQuarters = async () => {
+      try {
+        const res = await fetch(`/api/quarters?school_id=${schoolId || 'sch_1'}`);
+        const data = await res.json();
+        if (data.quarters && Array.isArray(data.quarters)) {
+          setQuarters(data.quarters);
+        }
+      } catch (e) {
+        console.error('Error fetching quarters in InspectorView:', e);
+      }
+    };
+    fetchQuarters();
+  }, [schoolId]);
 
   // Xavf guruhi va umumiy statistika yuklash
   useEffect(() => {
@@ -268,6 +286,8 @@ export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_c
     return true;
   });
 
+  const dayInfo = getCalendarDayInfo(selectedDate, quarters);
+
   return (
     <div className="max-w-4xl mx-auto px-2 sm:px-4 py-3 pb-36 space-y-4 font-sans">
       {/* Toast Notification */}
@@ -275,6 +295,30 @@ export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_c
         <div className="fixed top-20 right-4 z-50 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2 animate-in slide-in-from-top-4 border border-emerald-400/40">
           <span className="material-symbols-outlined text-[20px]">check_circle</span>
           <span className="text-sm font-bold">{successToast}</span>
+        </div>
+      )}
+
+      {/* ================= DAM OLISH / TA'TIL / BAYRAM XABARNOMASI ================= */}
+      {!dayInfo.isSchoolDay && (
+        <div className={`p-4 sm:p-5 rounded-3xl border flex items-center gap-3.5 shadow-xs ${dayInfo.badgeClass}`}>
+          <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-white/70 dark:bg-black/30 shrink-0 font-bold shadow-xs">
+            <span className="material-symbols-outlined text-[24px]">
+              {dayInfo.type === 'SUNDAY' ? 'weekend' : dayInfo.type === 'HOLIDAY' ? 'celebration' : 'beach_access'}
+            </span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-black text-sm sm:text-base leading-tight">
+                {dayInfo.title}
+              </h3>
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-white/60 dark:bg-black/20">
+                Dam olish kuni
+              </span>
+            </div>
+            <p className="text-xs opacity-85 mt-1 font-medium">
+              {dayInfo.description || 'Bugun o‘quvchilar uchun dars yo‘q. Davomat olish talab etilmaydi.'}
+            </p>
+          </div>
         </div>
       )}
 
@@ -890,6 +934,7 @@ export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_c
         <StudentMonthlyModal
           student={selectedStudentForMonthly}
           currentDate={selectedDate}
+          quarters={quarters}
           onClose={() => setSelectedStudentForMonthly(null)}
         />
       )}

@@ -59,6 +59,17 @@ export interface SchoolClass {
   created_at?: string;
 }
 
+export interface AcademicQuarter {
+  id: string;
+  school_id: string;
+  quarter_number: number; // 1, 2, 3, 4
+  name: string;          // "1-chorak", "2-chorak"
+  start_date: string;    // "YYYY-MM-DD"
+  end_date: string;      // "YYYY-MM-DD"
+  vacation_start?: string | null; // "YYYY-MM-DD"
+  vacation_end?: string | null;   // "YYYY-MM-DD"
+}
+
 export interface Student {
   id: string;
   school_id: string;

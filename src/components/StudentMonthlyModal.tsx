@@ -1,21 +1,25 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { AttendanceStatus } from '@/lib/types';
+import { AttendanceStatus, AcademicQuarter } from '@/lib/types';
+import { getCalendarDayInfo, DayCalendarInfo } from '@/lib/academicCalendar';
 
 interface StudentMonthlyModalProps {
   student: {
     id: string;
     name: string;
     class_name?: string;
+    school_id?: string;
   };
   currentDate: string; // e.g. "2026-10-10"
+  quarters?: AcademicQuarter[];
   onClose: () => void;
 }
 
-export function StudentMonthlyModal({ student, currentDate, onClose }: StudentMonthlyModalProps) {
+export function StudentMonthlyModal({ student, currentDate, quarters: propsQuarters, onClose }: StudentMonthlyModalProps) {
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [quarters, setQuarters] = useState<AcademicQuarter[]>(propsQuarters || []);
 
   // Oy va yilni ajratib olish
   const parsedDate = new Date(currentDate);
@@ -27,6 +31,27 @@ export function StudentMonthlyModal({ student, currentDate, onClose }: StudentMo
     'Iyul', 'Avgust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr'
   ];
   const currentMonthName = monthNames[month];
+
+  // Agar quarters prop orqali berilmagan bo'lsa, API dan olib kelamiz
+  useEffect(() => {
+    if (propsQuarters && propsQuarters.length > 0) {
+      setQuarters(propsQuarters);
+      return;
+    }
+    const fetchQuarters = async () => {
+      try {
+        const schoolParam = student.school_id ? `?school_id=${student.school_id}` : '';
+        const res = await fetch(`/api/quarters${schoolParam}`);
+        const data = await res.json();
+        if (data.quarters && Array.isArray(data.quarters)) {
+          setQuarters(data.quarters);
+        }
+      } catch (e) {
+        console.error('Error fetching quarters in StudentMonthlyModal:', e);
+      }
+    };
+    fetchQuarters();
+  }, [propsQuarters, student.school_id]);
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -62,12 +87,20 @@ export function StudentMonthlyModal({ student, currentDate, onClose }: StudentMo
   });
 
   // Joriy oydagi hisob-kitoblar (Statistika)
+  // E'TIBOR: Yakshanba, Davlat bayramlari va Chorak ta'tillarida davomat kelmadi deb hisoblanmaydi!
   let keldiCount = 0;
   let kelmadiCount = 0;
   let kechCount = 0;
 
   for (let day = 1; day <= daysInMonth; day++) {
     const dayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const dayInfo = getCalendarDayInfo(dayStr, quarters);
+    
+    // Dam olish kuni (Yakshanba, Bayram yoki Ta'til) bo'lsa dars hisoblanmaydi
+    if (!dayInfo.isSchoolDay) {
+      continue;
+    }
+
     const status = attendanceMap[dayStr];
     if (status === 'PRESENT') keldiCount++;
     else if (status === 'ABSENT_UNEXCUSED' || status === 'ABSENT_EXCUSED') kelmadiCount++;
@@ -75,24 +108,27 @@ export function StudentMonthlyModal({ student, currentDate, onClose }: StudentMo
   }
 
   // Kalendar katakchalari
-  const calendarDays: Array<{ day: number | null; dateStr: string; status?: AttendanceStatus; isWeekend: boolean }> = [];
+  const calendarDays: Array<{
+    day: number | null;
+    dateStr: string;
+    status?: AttendanceStatus;
+    dayInfo?: DayCalendarInfo;
+  }> = [];
   
   // Oldingi oydan qolgan bo'sh joylar
   for (let i = 0; i < firstDayWeekIndex; i++) {
-    calendarDays.push({ day: null, dateStr: '', isWeekend: false });
+    calendarDays.push({ day: null, dateStr: '' });
   }
 
   // Oydagi kunlar
   for (let day = 1; day <= daysInMonth; day++) {
-    const dateObj = new Date(year, month, day);
-    const dayOfWeek = (dateObj.getDay() + 6) % 7;
-    const isWeekend = dayOfWeek === 6; // Yakshanba
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const dayInfo = getCalendarDayInfo(dateStr, quarters);
     calendarDays.push({
       day,
       dateStr,
       status: attendanceMap[dateStr],
-      isWeekend,
+      dayInfo,
     });
   }
 
@@ -110,7 +146,7 @@ export function StudentMonthlyModal({ student, currentDate, onClose }: StudentMo
             </h3>
             <span className="inline-flex items-center gap-1 mt-1.5 px-2.5 py-0.5 rounded-lg text-xs font-bold bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900">
               <span className="material-symbols-outlined text-[14px]">school</span>
-              {student.class_name || '5-A sinfi'}
+              {student.class_name || 'Sinf'}
             </span>
           </div>
           <button
@@ -123,9 +159,14 @@ export function StudentMonthlyModal({ student, currentDate, onClose }: StudentMo
 
         {/* 1. Oylik statistika (Joriy oy) */}
         <div className="mt-5 space-y-2">
-          <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-slate-200">
-            Oylik statistika (Joriy oy)
-          </h4>
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-slate-200">
+              Oylik statistika (Dars kunlari bo‘yicha)
+            </h4>
+            <span className="text-[11px] font-semibold text-slate-400">
+              Dam olishlar hisobga olinmagan
+            </span>
+          </div>
           
           <div className="grid grid-cols-3 gap-2.5 bg-slate-50 dark:bg-slate-900/90 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-center">
             {/* Keldi */}
@@ -189,16 +230,33 @@ export function StudentMonthlyModal({ student, currentDate, onClose }: StudentMo
 
               // Bugungi sana belgisi
               const isToday = cd.dateStr === currentDate;
+              const info = cd.dayInfo;
 
               let cellStyle = 'bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-800';
-              if (isPresent) {
-                cellStyle = 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 font-black';
-              } else if (isAbsent) {
-                cellStyle = 'bg-rose-50 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-700 font-black';
-              } else if (isLate) {
-                cellStyle = 'bg-amber-50 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 font-black';
-              } else if (cd.isWeekend) {
-                cellStyle = 'bg-slate-50 dark:bg-slate-950 text-slate-400 dark:text-slate-600 border border-slate-200/50 dark:border-slate-850';
+              let tooltip = `${cd.dateStr}: Davomat kiritilmagan`;
+
+              if (info && !info.isSchoolDay) {
+                if (info.type === 'SUNDAY') {
+                  cellStyle = 'bg-slate-100/70 dark:bg-slate-900/40 text-slate-400 dark:text-slate-600 border border-dashed border-slate-300 dark:border-slate-800 font-semibold';
+                  tooltip = `${cd.dateStr}: Yakshanba (Dam olish kuni)`;
+                } else if (info.type === 'HOLIDAY') {
+                  cellStyle = 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-900 font-black';
+                  tooltip = `${cd.dateStr}: ${info.title}`;
+                } else if (info.type === 'VACATION') {
+                  cellStyle = 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900 font-black';
+                  tooltip = `${cd.dateStr}: ${info.title}`;
+                }
+              } else {
+                if (isPresent) {
+                  cellStyle = 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 font-black';
+                  tooltip = `${cd.dateStr}: Kelgan`;
+                } else if (isAbsent) {
+                  cellStyle = 'bg-rose-50 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-700 font-black';
+                  tooltip = `${cd.dateStr}: Kelmagan`;
+                } else if (isLate) {
+                  cellStyle = 'bg-amber-50 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 font-black';
+                  tooltip = `${cd.dateStr}: Kechikkan`;
+                }
               }
 
               return (
@@ -207,7 +265,7 @@ export function StudentMonthlyModal({ student, currentDate, onClose }: StudentMo
                   className={`h-9 sm:h-10 rounded-xl flex items-center justify-center text-xs transition-all relative tabular-nums ${cellStyle} ${
                     isToday ? 'ring-2 ring-blue-500 dark:ring-blue-400 shadow-xs' : ''
                   }`}
-                  title={`${cd.dateStr}: ${cd.status || (cd.isWeekend ? 'Dam olish kuni' : 'Davomat yo‘q')}`}
+                  title={tooltip}
                 >
                   {cd.day}
                 </div>
@@ -216,22 +274,30 @@ export function StudentMonthlyModal({ student, currentDate, onClose }: StudentMo
           </div>
 
           {/* Legend / Qaydlar */}
-          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-            <div className="flex items-center gap-1.5">
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+            <div className="flex items-center gap-1">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
               <span>Kelgan</span>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
               <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-              <span>Kelmagan</span>
+              <span>Kelmadi</span>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
               <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
               <span>Kechikkan</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-slate-400" />
-              <span>Dam olish</span>
+            <div className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-full bg-purple-500" />
+              <span>Bayram</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+              <span>Taʼtil</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-700" />
+              <span>Yakshanba</span>
             </div>
           </div>
         </div>

@@ -5,6 +5,9 @@ import { StudentMonthlyModal } from '../StudentMonthlyModal';
 import { AddStudentModal } from '../AddStudentModal';
 import { EditStudentModal, EditableStudent } from '../EditStudentModal';
 import { AnalyticsDashboard } from '../analytics/AnalyticsDashboard';
+import { AcademicQuartersModal } from '../AcademicQuartersModal';
+import { getCalendarDayInfo } from '@/lib/academicCalendar';
+import { AcademicQuarter } from '@/lib/types';
 
 interface DirectorViewProps {
   selectedDate: string;
@@ -16,8 +19,11 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
   const [stats, setStats] = useState<any | null>(null);
   const [classes, setClasses] = useState<any[]>([]);
   const [staffList, setStaffList] = useState<any[]>([]);
+  const [quarters, setQuarters] = useState<AcademicQuarter[]>([]);
+  const [isQuartersModalOpen, setIsQuartersModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
+  const [sendingTelegram, setSendingTelegram] = useState(false);
   const [filterShift, setFilterShift] = useState<'ALL' | '1' | '2'>('ALL');
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'SUBMITTED' | 'PENDING'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -170,20 +176,25 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
     try {
       setLoading(true);
       const schoolParam = schoolId ? `&school_id=${schoolId}` : '';
-      const [statsRes, classesRes, usersRes] = await Promise.all([
+      const [statsRes, classesRes, usersRes, quartersRes] = await Promise.all([
         fetch(`/api/stats?date=${selectedDate}${schoolParam}`),
         fetch(`/api/classes?date=${selectedDate}${schoolParam}`),
         fetch(`/api/users?school_id=${schoolId || 'sch_1'}`),
+        fetch(`/api/quarters?school_id=${schoolId || 'sch_1'}`),
       ]);
 
       const statsData = await statsRes.json();
       const classesData = await classesRes.json();
       const usersData = await usersRes.json();
+      const quartersData = await quartersRes.json();
 
       setStats(statsData);
       setClasses(classesData.classes || []);
       if (usersData && Array.isArray(usersData.users)) {
         setStaffList(usersData.users);
+      }
+      if (quartersData && Array.isArray(quartersData.quarters)) {
+        setQuarters(quartersData.quarters);
       }
     } catch (err) {
       console.error(err);
@@ -315,6 +326,33 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
     }
   };
 
+  // Telegram bot orqali kunlik hisobot yuborish
+  const handleSendTelegram = async () => {
+    if (sendingTelegram) return;
+    setSendingTelegram(true);
+    try {
+      const res = await fetch('/api/reports/telegram-daily', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: selectedDate,
+          school_id: schoolId,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast('Telegram botga hisobot muvaffaqiyatli yuborildi!');
+      } else {
+        alert(data.error || 'Telegramga hisobot yuborishda xatolik yuz berdi');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Server bilan bog‘lanishda xatolik yuz berdi');
+    } finally {
+      setSendingTelegram(false);
+    }
+  };
+
   const filteredClasses = classes.filter((c) => {
     if (filterShift !== 'ALL' && c.shift.toString() !== filterShift) return false;
     if (filterStatus === 'SUBMITTED' && !c.is_submitted) return false;
@@ -343,8 +381,43 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
   // Xavf guruhi
   const riskStudents = stats?.risk_students || [];
 
+  const dayInfo = getCalendarDayInfo(selectedDate, quarters);
+
   return (
     <div className="max-w-[1440px] w-full mx-auto flex flex-col gap-5 font-sans">
+      {/* ================= DAM OLISH / TA'TIL / BAYRAM XABARNOMASI ================= */}
+      {!dayInfo.isSchoolDay && (
+        <div className={`p-4 sm:p-5 rounded-3xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs ${dayInfo.badgeClass}`}>
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-white/70 dark:bg-black/30 shrink-0 font-bold shadow-xs">
+              <span className="material-symbols-outlined text-[24px]">
+                {dayInfo.type === 'SUNDAY' ? 'weekend' : dayInfo.type === 'HOLIDAY' ? 'celebration' : 'beach_access'}
+              </span>
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-black text-sm sm:text-base leading-tight">
+                  {dayInfo.title}
+                </h3>
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-white/60 dark:bg-black/20">
+                  Dam olish kuni
+                </span>
+              </div>
+              <p className="text-xs opacity-85 mt-1 font-medium">
+                {dayInfo.description || 'Bugun o‘quvchilar uchun dars yo‘q. Davomat olish talab etilmaydi.'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setIsQuartersModalOpen(true)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/90 dark:bg-black/40 hover:bg-white dark:hover:bg-black/60 text-xs font-bold transition-all shrink-0 self-start sm:self-auto shadow-xs active:scale-95"
+          >
+            <span className="material-symbols-outlined text-[16px]">edit_calendar</span>
+            <span>Chorak & Taʼtillarni sozlash</span>
+          </button>
+        </div>
+      )}
+
       {/* ================= 1. EXECUTIVE BANNER & REAL-TIME CONTROLS ================= */}
       <section className="bg-white dark:bg-[#0c121e] p-5 sm:p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-5">
         <div className="flex items-center gap-4">
@@ -471,6 +544,27 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
               </button>
             </div>
           )}
+
+          {/* Choraklar & Ta'tillar Boshqaruvi CTA */}
+          <button
+            onClick={() => setIsQuartersModalOpen(true)}
+            className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white px-3.5 py-2 rounded-xl text-xs sm:text-[13px] font-bold shadow-md shadow-amber-500/20 active:scale-95 transition-all"
+            title="O‘quv yili choraklari va taʼtillarni sozlash"
+          >
+            <span className="material-symbols-outlined text-[18px]">calendar_month</span>
+            <span>Chorak & Taʼtillar</span>
+          </button>
+
+          {/* Telegram hisobot yuborish */}
+          <button
+            onClick={handleSendTelegram}
+            disabled={sendingTelegram}
+            className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-xl text-xs sm:text-[13px] font-bold shadow-md shadow-sky-600/20 active:scale-95 transition-all disabled:opacity-60"
+            title="Direktor Telegram botiga kunlik hisobot yuborish"
+          >
+            <span className="material-symbols-outlined text-[18px]">send</span>
+            <span>{sendingTelegram ? 'Yuborilmoqda...' : 'Telegramga jo‘natish'}</span>
+          </button>
 
           {/* Excel Export CTA */}
           <button
@@ -1912,6 +2006,7 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
         <StudentMonthlyModal
           student={selectedStudentForMonthly}
           currentDate={selectedDate}
+          quarters={quarters}
           onClose={() => setSelectedStudentForMonthly(null)}
         />
       )}
@@ -1945,6 +2040,16 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
         }}
         student={editingStudent}
         classes={classes.map((c) => ({ id: c.id, name: c.name }))}
+      />
+      {/* ================= MODAL: CHORAKLAR VA TA'TILLARNI SOZLASH ================= */}
+      <AcademicQuartersModal
+        isOpen={isQuartersModalOpen}
+        onClose={() => setIsQuartersModalOpen(false)}
+        schoolId={schoolId || 'sch_1'}
+        onSuccess={() => {
+          showToast('Choraklar va taʼtillar jadvali yangilandi!');
+          fetchAllData();
+        }}
       />
     </div>
   );
