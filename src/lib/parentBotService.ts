@@ -670,7 +670,22 @@ export async function processTelegramUpdate(update: TelegramUpdate) {
     }
 
     // /start komandasi
-    if (text === '/start') {
+    if (text.startsWith('/start')) {
+      const parts = text.split(' ');
+      if (parts.length > 1 && /^\d{6}$/.test(parts[1].trim())) {
+        // Deeplink orqali kod uzatilgan bo'lsa (masalan: /start 496325)
+        const code = parts[1].trim();
+        const linkResult = await linkStudentByCode(from.id, code);
+        if (linkResult.success) {
+          const updatedUser = await getOrCreateParentUser(from);
+          return await sendMainMenu(
+            chatId,
+            updatedUser,
+            `🎉 <b>Muvaffaqiyatli ulandi!</b>\n\nFarzand: <b>${linkResult.student.name}</b>\nSinf: <b>${linkResult.student.class_name}</b>\nMaktab: <b>${linkResult.student.school_name}</b>\n\nEndi uning barcha davomat maʼlumotlarini kuzatishingiz mumkin!`
+          );
+        }
+      }
+
       const linked = await getLinkedStudents(from.id);
 
       if (linked.length === 0) {
@@ -698,7 +713,7 @@ export async function processTelegramUpdate(update: TelegramUpdate) {
     }
 
     // /cancel komandasi
-    if (text === '/cancel') {
+    if (text === '/cancel' || text.toLowerCase() === 'bekor qilish') {
       await query(`UPDATE parent_telegram_users SET state = 'IDLE' WHERE telegram_id = $1`, [from.id]);
       return await sendMainMenu(chatId, parentUser, 'Bekor qilindi.');
     }
@@ -710,6 +725,32 @@ export async function processTelegramUpdate(update: TelegramUpdate) {
         chatId,
         `🔑 <b>Farzandni ulash:</b>\n\nFarzandingizning <b>6 xonali maxfiy kodini</b> kiriting:\n(Ushbu kodni sinf rahbaridan olishingiz mumkin, masalan: <code>496325</code>)\n\n<i>Bekor qilish uchun /cancel deb yozing.</i>`
       );
+    }
+
+    // Asosiy menyu tugmalari bosilganda holatni tozalaymiz va tegishli funksiyani chaqiramiz
+    if (text === '📊 Bugungi davomat') {
+      await query(`UPDATE parent_telegram_users SET state = 'IDLE' WHERE telegram_id = $1`, [from.id]);
+      return await handleTodayAttendance(chatId);
+    }
+
+    if (text === '📅 Oylik davomat') {
+      await query(`UPDATE parent_telegram_users SET state = 'IDLE' WHERE telegram_id = $1`, [from.id]);
+      return await handleMonthlyAttendance(chatId);
+    }
+
+    if (text === '👨‍👩‍👧 Farzandlarim') {
+      await query(`UPDATE parent_telegram_users SET state = 'IDLE' WHERE telegram_id = $1`, [from.id]);
+      return await handleMyChildren(chatId);
+    }
+
+    if (text === '📢 Maktab yangiliklari') {
+      await query(`UPDATE parent_telegram_users SET state = 'IDLE' WHERE telegram_id = $1`, [from.id]);
+      return await handleSchoolNews(chatId);
+    }
+
+    if (text.startsWith('🔔 Xabarnoma') || text.startsWith('🔕 Xabarnoma')) {
+      await query(`UPDATE parent_telegram_users SET state = 'IDLE' WHERE telegram_id = $1`, [from.id]);
+      return await handleToggleNotifications(chatId);
     }
 
     // Agar ota-ona hozir kod kiritish holatida bo'lsa yoki to'g'ridan-to'g'ri 6 xonali son yozsa
@@ -735,27 +776,6 @@ export async function processTelegramUpdate(update: TelegramUpdate) {
           `⚠️ Kod 6 ta raqamdan iborat bo‘lishi kerak (Masalan: <code>496325</code>).\n\nIltimos, to‘g‘ri kodni kiriting yoki bekor qilish uchun /cancel deb yozing.`
         );
       }
-    }
-
-    // Asosiy menyu tugmalari
-    if (text === '📊 Bugungi davomat') {
-      return await handleTodayAttendance(chatId);
-    }
-
-    if (text === '📅 Oylik davomat') {
-      return await handleMonthlyAttendance(chatId);
-    }
-
-    if (text === '👨‍👩‍👧 Farzandlarim') {
-      return await handleMyChildren(chatId);
-    }
-
-    if (text === '📢 Maktab yangiliklari') {
-      return await handleSchoolNews(chatId);
-    }
-
-    if (text.startsWith('🔔 Xabarnoma') || text.startsWith('🔕 Xabarnoma')) {
-      return await handleToggleNotifications(chatId);
     }
 
     // Default holat: menyuni qayta yuborish
