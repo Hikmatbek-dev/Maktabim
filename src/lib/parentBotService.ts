@@ -2,7 +2,53 @@ import { query } from '@/lib/db';
 import { getCalendarDayInfo } from '@/lib/academicCalendar';
 import { AcademicQuarter } from '@/lib/types';
 
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8990180086:AAETGBBuOIPTIg_vdvWRcdVnbTOEM2OsxmM';
+const TELEGRAM_BOT_TOKEN =
+  process.env.TELEGRAM_PARENT_BOT_TOKEN ||
+  process.env.TELEGRAM_BOT_TOKEN ||
+  '9204379482:AAG52nMv0V3GaOxNrij5a-JgWaHRDEQkYXo';
+
+let isTablesChecked = false;
+
+/**
+ * Jadvallarni avtomatik tekshirish va yaratish (Vercel va Cloud DB uchun)
+ */
+export async function ensureParentTablesExist() {
+  if (isTablesChecked) return;
+  try {
+    await query(`
+      ALTER TABLE students ADD COLUMN IF NOT EXISTS parent_code VARCHAR(32);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_students_parent_code ON students(parent_code) WHERE parent_code IS NOT NULL;
+      
+      UPDATE students 
+      SET parent_code = LPAD(FLOOR(RANDOM() * 900000 + 100000)::text, 6, '0') 
+      WHERE parent_code IS NULL;
+
+      CREATE TABLE IF NOT EXISTS parent_telegram_users (
+        telegram_id BIGINT PRIMARY KEY,
+        first_name VARCHAR(255),
+        last_name VARCHAR(255),
+        username VARCHAR(255),
+        phone_number VARCHAR(50),
+        active_student_id VARCHAR(50),
+        notification_enabled BOOLEAN DEFAULT true,
+        state VARCHAR(50) DEFAULT 'IDLE',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS parent_student_links (
+        id SERIAL PRIMARY KEY,
+        telegram_id BIGINT,
+        student_id VARCHAR(50),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        UNIQUE(telegram_id, student_id)
+      );
+    `);
+    isTablesChecked = true;
+  } catch (err) {
+    console.error('ensureParentTablesExist error:', err);
+  }
+}
 
 export interface TelegramFromUser {
   id: number;
@@ -550,6 +596,9 @@ export async function handleToggleNotifications(chatId: number) {
  */
 export async function processTelegramUpdate(update: TelegramUpdate) {
   try {
+    // Bazadagi jadvallar mavjudligini ta'minlash
+    await ensureParentTablesExist();
+
     // 1. Tugma bosilganda (Callback Query)
     if (update.callback_query) {
       const cq = update.callback_query;

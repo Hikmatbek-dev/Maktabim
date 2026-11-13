@@ -4,7 +4,10 @@
  * Ishga tushirish: node scripts/parent-bot.mjs
  */
 
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8990180086:AAETGBBuOIPTIg_vdvWRcdVnbTOEM2OsxmM';
+const BOT_TOKEN =
+  process.env.TELEGRAM_PARENT_BOT_TOKEN ||
+  process.env.TELEGRAM_BOT_TOKEN ||
+  '9204379482:AAG52nMv0V3GaOxNrij5a-JgWaHRDEQkYXo';
 const WEBHOOK_URL = process.env.BOT_INTERNAL_WEBHOOK || 'http://localhost:3000/api/telegram/parent-webhook';
 
 console.log('🤖 Maktabim Ota-onalar Telegram Boti ishga tushmoqda...');
