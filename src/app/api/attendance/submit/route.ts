@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { clearCache } from '@/lib/cache';
+import { notifyParentsOnAttendanceSubmit } from '@/lib/parentBotService';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,6 +33,12 @@ export async function POST(req: NextRequest) {
     );
 
     clearCache();
+
+    // Darsda yo'q yoki kechikkan o'quvchilarning ota-onalariga tezkor Telegram bildirishnoma yuborish
+    notifyParentsOnAttendanceSubmit(class_id, date).catch((err) => {
+      console.error('Background parent notification error:', err);
+    });
+
     return NextResponse.json({
       success: true,
       message: 'Davomat muvaffaqiyatli topshirildi va tasdiqlandi!',

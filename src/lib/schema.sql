@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS students (
     birth_date DATE,
     parent_name VARCHAR(255),
     parent_phone VARCHAR(50),
+    parent_code VARCHAR(32) UNIQUE,
     status VARCHAR(20) NOT NULL DEFAULT 'active', -- active, transferred, expelled
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -90,6 +91,28 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 CREATE TABLE IF NOT EXISTS system_settings (
     key VARCHAR(100) PRIMARY KEY,
     value TEXT NOT NULL
+);
+
+-- Ota-onalar Telegram Boti jadvallari
+CREATE TABLE IF NOT EXISTS parent_telegram_users (
+    telegram_id BIGINT PRIMARY KEY,
+    first_name VARCHAR(255),
+    last_name VARCHAR(255),
+    username VARCHAR(255),
+    phone_number VARCHAR(50),
+    active_student_id VARCHAR(50) REFERENCES students(id) ON DELETE SET NULL,
+    notification_enabled BOOLEAN DEFAULT true,
+    state VARCHAR(50) DEFAULT 'IDLE',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS parent_student_links (
+    id SERIAL PRIMARY KEY,
+    telegram_id BIGINT REFERENCES parent_telegram_users(telegram_id) ON DELETE CASCADE,
+    student_id VARCHAR(50) REFERENCES students(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(telegram_id, student_id)
 );
 
 -- Indekslar

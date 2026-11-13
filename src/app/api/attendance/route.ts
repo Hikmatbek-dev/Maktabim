@@ -44,6 +44,7 @@ export async function GET(req: NextRequest) {
         s.gender,
         s.parent_name,
         s.parent_phone,
+        s.parent_code,
         COALESCE(a.status, 'PRESENT') as status,
         a.id as attendance_id,
         a.reason,

@@ -41,8 +41,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Auth API yo'llari o'tkaziladi
-  if (pathname.startsWith('/api/auth')) {
+  // 2. Auth API va Telegram Webhook yo'llari o'tkaziladi
+  if (pathname.startsWith('/api/auth') || pathname.startsWith('/api/telegram')) {
     return NextResponse.next();
   }
 

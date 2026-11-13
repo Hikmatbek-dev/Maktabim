@@ -80,6 +80,7 @@ export interface Student {
   birth_date?: string;
   parent_name?: string;
   parent_phone?: string;
+  parent_code?: string;
   status: 'active' | 'transferred' | 'expelled';
   created_at?: string;
 }

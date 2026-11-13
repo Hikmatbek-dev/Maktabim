@@ -1821,6 +1821,11 @@ export function DirectorView({ selectedDate, schoolId, activeTab = 'director_sum
                           </p>
                           <span className="text-[10px] sm:text-[11px] text-slate-400 block mt-0.5 font-medium truncate">
                             {st.parent_name || 'Ota-ona'} {st.parent_phone && `• ${st.parent_phone}`}
+                            {st.parent_code && (
+                              <span className="ml-1.5 px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 font-bold font-mono text-[10px]">
+                                Bot kodi: {st.parent_code}
+                              </span>
+                            )}
                           </span>
                         </div>
                       </div>

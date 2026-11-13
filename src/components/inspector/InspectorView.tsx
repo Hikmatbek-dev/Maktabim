@@ -152,6 +152,7 @@ export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_c
             gender: r.gender,
             parent_name: r.parent_name,
             parent_phone: r.parent_phone,
+            parent_code: r.parent_code,
             status: 'active',
           });
         });
@@ -789,6 +790,11 @@ export function InspectorView({ selectedDate, schoolId, activeTab = 'inspector_c
                           <span>{student.gender === 'male' ? 'O‘g‘il bola' : 'Qiz bola'}</span>
                           <span>•</span>
                           <span className="text-blue-600 dark:text-blue-400 font-semibold">Taqvim</span>
+                          {student.parent_code && (
+                            <span className="px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 font-bold font-mono text-[10px]">
+                              Bot kodi: {student.parent_code}
+                            </span>
+                          )}
                           {attendanceMap[student.id]?.reason && (
                             <span className="text-amber-600 dark:text-amber-400 font-bold ml-1">
                               • {attendanceMap[student.id]?.reason}

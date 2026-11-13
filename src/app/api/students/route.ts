@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
 
     let sql = `
       SELECT s.id, s.school_id, s.class_id, c.name as class_name, s.name, s.gender,
-             s.birth_date, s.parent_name, s.parent_phone, s.status, s.created_at
+             s.birth_date, s.parent_name, s.parent_phone, s.parent_code, s.status, s.created_at
       FROM students s
       JOIN classes c ON c.id = s.class_id
       WHERE s.status = 'active' AND s.school_id = $1
@@ -70,10 +70,19 @@ export async function POST(req: NextRequest) {
     }
 
     const studentId = `st_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+    
+    // 6 xonali takrorlanmas ota-ona ulanish kodi
+    let parentCode = '';
+    let isUnique = false;
+    while (!isUnique) {
+      parentCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const codeCheck = await query(`SELECT id FROM students WHERE parent_code = $1`, [parentCode]);
+      if (codeCheck.rows.length === 0) isUnique = true;
+    }
 
     await query(
-      `INSERT INTO students (id, school_id, class_id, name, gender, parent_name, parent_phone, birth_date, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active')`,
+      `INSERT INTO students (id, school_id, class_id, name, gender, parent_name, parent_phone, parent_code, birth_date, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'active')`,
       [
         studentId,
         targetSchoolId,
@@ -82,6 +91,7 @@ export async function POST(req: NextRequest) {
         gender || 'male',
         parent_name || null,
         parent_phone || null,
+        parentCode,
         birth_date || null,
       ]
     );

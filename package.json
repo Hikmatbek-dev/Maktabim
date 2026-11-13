@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "report:telegram": "node scripts/send-daily-report.mjs",
+    "bot": "node scripts/parent-bot.mjs",
     "db:init": "node scripts/init-db.mjs",
     "db:seed": "node scripts/init-db.mjs"
   },
